@@ -13,16 +13,13 @@ O banco será criado em `data/marquify.db` e continua existindo após reiniciar 
 ## Ambiente local com PostgreSQL
 
 1. Instale e abra o Docker Desktop.
-2. Copie `.env.example` para `.env` e altere `DB_PASSWORD`.
-3. Execute `docker compose up -d` nesta pasta.
-4. Inicie a API com o perfil PostgreSQL:
+2. Execute `powershell -ExecutionPolicy Bypass -File .\start-postgres.ps1` nesta pasta.
+3. Inicie a API com `powershell -ExecutionPolicy Bypass -File .\run-postgres.ps1`.
+
+Se for necessário executar manualmente, use:
 
 ```powershell
-$env:JAVA_HOME = 'C:\caminho\para\jdk-21'
-$env:SPRING_PROFILES_ACTIVE = 'postgres'
-$env:DB_PASSWORD = 'a-mesma-senha-do-arquivo-.env'
-$env:JWT_SECRET = 'uma-chave-longa-para-desenvolvimento'
-.\mvnw.cmd spring-boot:run
+docker compose up -d
 ```
 
 O volume `postgres_data` preserva contas, catálogo e agendamentos mesmo depois de reiniciar a API ou o container. Para encerrar o banco, use `docker compose down`; não use `-v` se quiser manter os dados.

@@ -23,6 +23,10 @@ api:
 
 server:
   port: ${PORT:8080}
+  servlet:
+    session:
+      # A API usa JWT stateless; não deve persistir sessões HTTP no disco.
+      persistent: false
   error:
     include-message: never
     include-stacktrace: never
