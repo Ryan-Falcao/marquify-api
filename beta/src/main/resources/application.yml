@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: marquify-api
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    clean-disabled: true
+
+api:
+  security:
+    token:
+      secret: ${JWT_SECRET}
+      expiration: ${JWT_EXPIRATION:2h}
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never

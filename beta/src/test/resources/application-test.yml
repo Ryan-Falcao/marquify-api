@@ -1,0 +1,11 @@
+# Chave pública e descartável usada SOMENTE nos testes.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:h2:mem:marquify;MODE=MySQL;DB_CLOSE_DELAY=-1}
+    username: ${TEST_DB_USERNAME:sa}
+    password: ${TEST_DB_PASSWORD:}
+api:
+  security:
+    token:
+      secret: marquify-test-only-key-never-use-in-production
+      expiration: 5m

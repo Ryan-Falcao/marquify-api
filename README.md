@@ -1,111 +1,158 @@
-# Marquify API 📅
+# Marquify API
 
-API REST para gerenciamento de **agendamentos**, desenvolvida em **Java** com **Spring Boot**, autenticação segura via **JWT (Spring Security)** e persistência de dados em **MySQL**.
+Backend de agendamento para barbearias, clínicas e outros prestadores, com gestão de agenda, clientes e serviços. Consulte o [planejamento](Planejamento/amadurecimento-backend.md) para o diagnóstico e as próximas etapas.
 
-## 📖 Sobre o projeto
+## Requisitos
 
-A Marquify API foi criada para gerenciar o processo de agendamentos de forma simples e segura, oferecendo autenticação de usuários e operações para criar, consultar, atualizar e cancelar agendamentos.
+- **JDK 21**, Spring Boot 4.1.0 e Maven Wrapper (não exige Maven global).
+- MySQL 8.4 para execução local; Docker Compose é uma opção para preparar o banco.
+- Internet no primeiro build, para baixar o Maven e as dependências.
+- Flyway versiona o esquema; Hibernate apenas valida a compatibilidade das tabelas.
 
-## 🛠️ Tecnologias utilizadas
+O projeto Maven fica em **beta**. Os exemplos usam PowerShell 7 a partir da raiz do repositório.
 
-- **Java**
-- **Spring Boot**
-- **Spring Security** (autenticação e autorização)
-- **JWT** (JSON Web Token) para autenticação stateless
-- **MySQL** (banco de dados relacional)
-- **Maven** (gerenciamento de dependências)
+## 1. Compilar e testar
 
-## ⚙️ Funcionalidades
-
-- Cadastro e autenticação de usuários
-- Login com geração de token JWT
-- Criação, listagem, atualização e cancelamento de agendamentos
-- Proteção de rotas via token de autenticação
-
-> Ajuste esta lista conforme as funcionalidades reais implementadas no seu projeto.
-
-## 🚀 Como executar o projeto
-
-### Pré-requisitos
-
-- Java 17+ instalado
-- Maven instalado
-- MySQL rodando localmente ou em servidor
-
-### Passos
-
-```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/marquify-api.git
-
-# Acesse a pasta do projeto
-cd marquify-api
+```powershell
+cd beta
+# Ajuste para o caminho do seu JDK 21:
+$env:JAVA_HOME = 'C:\caminho\para\jdk-21'
+& "$env:JAVA_HOME\bin\java.exe" -version
+.\mvnw.cmd -version
+.\mvnw.cmd -B verify
 ```
 
-### Configuração do banco de dados
+Neste checkout foi preparado um JDK portátil em `.tools/jdk21`, ignorado pelo Git. Se essa pasta existir, é possível selecioná-lo sem alterar o Java do Windows:
 
-Crie um banco no MySQL e configure as credenciais no arquivo `application.properties`:
-
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/marquify
-spring.datasource.username=seu_usuario
-spring.datasource.password=sua_senha
-
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-
-# Configuração JWT
-jwt.secret=sua_chave_secreta
-jwt.expiration=86400000
+```powershell
+# Dentro de beta:
+$env:JAVA_HOME = (Get-ChildItem ../.tools/jdk21 -Directory | Select-Object -First 1).FullName
 ```
 
-> 💡 Dica: mantenha um arquivo `application.properties.example` no repositório (sem dados sensíveis) e adicione o `application.properties` real ao `.gitignore`, para não expor credenciais.
+Em Linux/macOS, use `./mvnw` com `JAVA_HOME` configurado para o JDK 21.
 
-### Executando a aplicação
+Os testes ativam o perfil `test`, usam H2 em memória e aplicam a mesma migration inicial. Não precisam de MySQL nem usam dados reais. H2 não substitui a verificação no MySQL descrita adiante. Sua configuração e dependência ficam somente no classpath de testes.
 
-```bash
-./mvnw spring-boot:run
+Para executar os mesmos testes em MySQL, prepare um banco **exclusivo para testes**, inicialmente vazio, e use:
+
+```powershell
+$env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/marquify_test'
+$env:TEST_DB_USERNAME = 'marquify'
+$env:TEST_DB_PASSWORD = Read-Host 'Senha do banco de testes' -MaskInput
+.\mvnw.cmd -B verify
+Remove-Item Env:TEST_DB_URL, Env:TEST_DB_USERNAME, Env:TEST_DB_PASSWORD
 ```
 
-A API estará disponível em `http://localhost:8080`.
+O usuário deve ter permissões nesse banco. Esses testes aplicam migrations e verificam uma agenda vazia; nunca use um banco de produção. Remover as variáveis volta a selecionar H2 nas próximas execuções.
 
-## 📡 Endpoints principais
+## 2. Preparar o MySQL local
 
-### Autenticação
+### Com Docker Compose
 
-| Método | Rota            | Descrição                       |
-|--------|-----------------|----------------------------------|
-| POST   | `/auth/register` | Cadastra um novo usuário         |
-| POST   | `/auth/login`     | Autentica o usuário e retorna o token JWT |
+Dentro de `beta`, prepare um arquivo local sem sobrescrever configurações existentes:
 
-### Agendamentos
-
-| Método | Rota                  | Descrição                                |
-|--------|-----------------------|-------------------------------------------|
-| GET    | `/agendamentos`       | Lista todos os agendamentos               |
-| GET    | `/agendamentos/{id}`  | Busca um agendamento específico           |
-| POST   | `/agendamentos`       | Cria um novo agendamento                  |
-| PUT    | `/agendamentos/{id}`  | Atualiza um agendamento existente         |
-| DELETE | `/agendamentos/{id}`  | Cancela/remove um agendamento             |
-
-> Ajuste os nomes das rotas e campos conforme a implementação real dos seus controllers.
-
-### Autenticação nas requisições
-
-Após o login, envie o token JWT no header das requisições protegidas:
-
-```
-Authorization: Bearer SEU_TOKEN_AQUI
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-## 🧪 Testando a API
+Edite `.env` e substitua os placeholders por duas senhas diferentes. Depois:
 
-Você pode testar os endpoints usando ferramentas como [Postman](https://www.postman.com/) ou [Insomnia](https://insomnia.rest/).
+```powershell
+docker compose up -d --wait mysql
+docker compose ps
+```
 
-## 🤝 Contribuindo
+O serviço cria o banco `marquify` e o usuário `marquify`, publica a porta apenas em `127.0.0.1:3306` e persiste dados em volume. Se a porta estiver ocupada, altere `MYSQL_PORT` no `.env` e ajuste `DB_URL` na aplicação.
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests com melhorias, correções ou novas funcionalidades.
+`docker compose stop` para o serviço preservando os dados. As credenciais de inicialização só são aplicadas quando o volume está vazio; alterar `.env` não altera usuários de um banco já inicializado.
 
-## 📄 Licença
+### Com um MySQL existente
 
-Este projeto está sob a licença MIT.
+Crie um **banco vazio dedicado ao desenvolvimento** e um usuário com permissão para criar/alterar tabelas e consultar/gravar dados nesse banco. Forneça `DB_URL`, `DB_USERNAME` e `DB_PASSWORD` correspondentes. O Flyway cria as tabelas ao iniciar.
+
+Não aponte esta primeira migration para um banco existente com dados sem revisar o esquema e planejar sua adoção. O baseline automático está desativado: um banco não vazio sem histórico Flyway deve falhar, evitando assumir que seu esquema já corresponde à migration. Não use `ddl-auto=update` nem apague dados para contornar essa falha.
+
+## 3. Configurar e executar
+
+O Compose lê `.env`; **Spring Boot e Maven não o carregam automaticamente**. Configure as variáveis na sessão que iniciará a API:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = 'local'
+$env:DB_URL = 'jdbc:mysql://localhost:3306/marquify'
+$env:DB_USERNAME = 'marquify'
+# Mesma senha de DB_PASSWORD do .env, sem registrá-la no histórico:
+$env:DB_PASSWORD = Read-Host 'Senha do usuário MySQL' -MaskInput
+
+# Chave aleatória local; não é impressa nem gravada no repositório:
+$jwtBytes = New-Object byte[] 48
+$jwtGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$jwtGenerator.GetBytes($jwtBytes)
+$jwtGenerator.Dispose()
+$env:JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
+$env:JWT_EXPIRATION = '2h'
+
+.\mvnw.cmd spring-boot:run
+```
+
+A entrada mascarada requer PowerShell 7. Em outro shell, forneça a variável pelo mecanismo seguro disponível no ambiente.
+
+A API atende em `http://localhost:8080`. O perfil `local` fornece apenas URL/usuário padrão; senha do banco e segredo JWT continuam obrigatórios. Gerar outra chave invalida os tokens anteriores. Para manter sessões entre reinicializações, preserve a chave fora do repositório.
+
+| Variável | Finalidade | Padrão |
+|---|---|---|
+| SPRING_PROFILES_ACTIVE | local ou prod | Nenhum |
+| DB_URL | URL JDBC | Obrigatória; local: jdbc:mysql://localhost:3306/marquify |
+| DB_USERNAME | Usuário do banco | Obrigatório; local: marquify |
+| DB_PASSWORD | Senha do banco | Obrigatória |
+| JWT_SECRET | Segredo com pelo menos 32 bytes UTF-8 | Obrigatório |
+| JWT_EXPIRATION | Validade entre 1s e 30d | 2h |
+| PORT | Porta HTTP | 8080 |
+
+As propriedades internas do JWT são `api.security.token.secret` e `api.security.token.expiration`. Configuração inválida de segredo ou validade impede a criação do serviço de tokens na inicialização.
+
+Em produção, use `SPRING_PROFILES_ACTIVE=prod` e forneça todas as credenciais por variáveis/gestor de segredos. O Compose é destinado ao desenvolvimento. Esta preparação do ambiente não conclui as correções de autorização e agenda previstas no planejamento.
+
+## 4. Verificar migrations e autenticação
+
+No log de inicialização, confirme a aplicação da versão 1 pelo Flyway e a inicialização da aplicação. Em uma segunda inicialização, a migration deve ser reconhecida como aplicada, sem recriar tabelas.
+
+Para consultar o banco com o Compose:
+
+```powershell
+docker compose exec mysql mysql -u marquify -p marquify
+```
+
+No cliente MySQL:
+
+```sql
+SELECT version, description, success FROM flyway_schema_history;
+SHOW TABLES;
+```
+
+A migration cria `clientes`, `vendedor`, `vendedor_dias_abertos`, `servicos` e `agendamentos`. Preserva a modelagem atual, inclusive enums ordinais e preço em Double. Não altere uma migration já aplicada: crie a próxima versão.
+
+Não são criadas contas com senha padrão. Para obter um cliente fictício de desenvolvimento, use `/auth/register` com login único e senha escolhida localmente. Depois use `/auth/login` e envie o token no header `Authorization: Bearer SEU_TOKEN`. O cadastro de vendedor ainda não está implementado.
+
+## Endpoints existentes
+
+| Método | Rota | Função |
+|---|---|---|
+| POST | /auth/register | Cadastrar cliente (login, senha) |
+| POST | /auth/login | Autenticar e retornar JWT |
+| POST | /agendamento | Criar agendamento |
+| PUT | /agendamento/cancelar | Cancelar por agendamentoId no corpo |
+| GET | /vendedor/{id} | Consultar vendedor |
+| GET | /vendedor/agendamentos | Listar por vendedor_id no corpo (contrato atual) |
+| PUT | /vendedor/mudarNome | Alterar nome |
+| PUT | /vendedor/mudarNomeLoja | Alterar nome da loja |
+| PUT | /vendedor/mudarDiasAbertos | Alterar dias de funcionamento |
+| PUT | /vendedor/mudarHoraAbertura | Alterar abertura |
+| PUT | /vendedor/mudarHoraFechamento | Alterar fechamento |
+| POST | /vendedor/criarServico | Criar serviço |
+| DELETE | /vendedor/deletarServico | Excluir serviço |
+
+`/auth/**` é público, `/vendedor/**` exige ADMIN e `/agendamento/**` exige USER. As limitações atuais, inclusive falta de validação de propriedade dos IDs e conflitos de agenda, estão no planejamento.
+
+## Referência técnica
+
+A integração Flyway usa o starter específico do Spring Boot 4, conforme a [documentação oficial dos starters](https://docs.spring.io/spring-boot/4.0/reference/using/build-systems.html).
