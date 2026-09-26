@@ -2,6 +2,7 @@ package com.marquify.beta.entity;
 
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.jspecify.annotations.Nullable;
@@ -32,6 +33,7 @@ public class Cliente implements UserDetails {
     private String numero;
 
     @NotNull
+    @JsonIgnore
     private String senha;
 
     @NotNull
@@ -50,6 +52,7 @@ public class Cliente implements UserDetails {
     }
 
     @Override
+    @JsonIgnore
     public @Nullable String getPassword() {
         return this.senha;
     }

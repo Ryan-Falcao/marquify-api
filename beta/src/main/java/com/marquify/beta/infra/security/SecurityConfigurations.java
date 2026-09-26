@@ -27,6 +27,9 @@ public class SecurityConfigurations {
         return httpSecurity
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) -> SecurityErrors.unauthorized(response))
+                        .accessDeniedHandler((request, response, exception) -> SecurityErrors.forbidden(response)))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/vendedor/**").hasRole("ADMIN")

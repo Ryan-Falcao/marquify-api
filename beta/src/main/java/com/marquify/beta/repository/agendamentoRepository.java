@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface agendamentoRepository extends JpaRepository<Agendamento, Long> {
+    java.util.Optional<Agendamento> findByIdAndClienteId(Long id, Long clienteId);
+    java.util.Optional<Agendamento> findByIdAndVendedorId(Long id, Long vendedorId);
     List<Agendamento> findByVendedorId(Long vendedorId);
 }

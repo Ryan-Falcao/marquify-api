@@ -1,6 +1,7 @@
 package com.marquify.beta.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -51,6 +52,7 @@ public class Vendedor implements UserDetails {
     private Set<DiasAbertos> diasAbertos;
 
     @NotNull
+    @JsonIgnore
     private String senha;
 
     @NotNull
@@ -64,6 +66,7 @@ public class Vendedor implements UserDetails {
     }
 
     @Override
+    @JsonIgnore
     public @Nullable String getPassword() {
         return this.senha;
     }

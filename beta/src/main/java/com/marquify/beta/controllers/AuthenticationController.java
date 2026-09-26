@@ -8,7 +8,8 @@ import com.marquify.beta.request.AuthenticationRequest;
 import com.marquify.beta.request.RegisterRequest;
 import com.marquify.beta.response.LoginResponse;
 import jakarta.validation.Valid;
-import org.apache.catalina.User;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -45,7 +46,9 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody @Valid RegisterRequest request){
-        if(this.clienteRepository.findByEmail(request.getLogin()) != null) return ResponseEntity.badRequest().build();
+        if (this.clienteRepository.existsByEmail(request.getLogin()) || this.vendedorRepository.existsByEmail(request.getLogin())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Login indisponível");
+        }
 
         String encryptedSenha = new BCryptPasswordEncoder().encode(request.getSenha());
         Cliente newUser = new Cliente(request.getLogin(), encryptedSenha);

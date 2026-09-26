@@ -3,7 +3,7 @@ package com.marquify.beta.infra.security;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.userdetails.User;
+import com.marquify.beta.entity.Cliente;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -36,11 +36,12 @@ class TokenServiceTests {
         TokenProperties properties = properties();
         properties.setExpiration(Duration.ofMinutes(15));
         TokenService service = new TokenService(properties);
-        String token = service.gerarToken(User.withUsername("cliente@example.test")
-                .password("unused").roles("USER").build());
+        Cliente cliente = new Cliente("cliente@example.test", "unused");
+        cliente.setId(42L);
+        String token = service.gerarToken(cliente);
         var claims = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8)))
                 .build().parseSignedClaims(token).getPayload();
-        assertThat(service.validarToken(token)).isEqualTo("cliente@example.test");
+        assertThat(service.validarToken(token)).isEqualTo("cliente:42");
         assertThat(claims.getIssuer()).isEqualTo("marquify-api");
         assertThat(claims.getExpiration().getTime() - claims.getIssuedAt().getTime()).isEqualTo(900_000);
     }

@@ -151,7 +151,27 @@ Não são criadas contas com senha padrão. Para obter um cliente fictício de d
 | POST | /vendedor/criarServico | Criar serviço |
 | DELETE | /vendedor/deletarServico | Excluir serviço |
 
-`/auth/**` é público, `/vendedor/**` exige ADMIN e `/agendamento/**` exige USER. As limitações atuais, inclusive falta de validação de propriedade dos IDs e conflitos de agenda, estão no planejamento.
+`/auth/**` é público, `/vendedor/**` exige ADMIN e `/agendamento/**` exige USER. Além do perfil, as operações verificam a identidade e a propriedade do registro. Um vendedor só consulta/altera seu próprio cadastro, serviços e agenda. Um cliente só cria reservas para si e cancela as próprias; um vendedor ADMIN pode cancelar reservas da sua agenda.
+
+## Contratos de segurança e integração
+
+- O JWT identifica a conta por `cliente:<id>` ou `vendedor:<id>`. Tokens antigos baseados apenas em e-mail são rejeitados: faça login novamente após atualizar o backend.
+- A criação de agendamento obtém o cliente pelo token. `clienteId` pode ser omitido; se informado, deve corresponder ao cliente autenticado. O serviço também precisa pertencer ao vendedor informado.
+- Criar reservas em nome de clientes usando uma conta de vendedor ainda não é permitido; essa jornada depende da modelagem futura da carteira de clientes.
+- O cancelamento localiza o agendamento pelo ID e pelo dono autorizado. Recurso inexistente ou fora desse escopo retorna 404. IDs de vendedor diferentes da conta autenticada nas operações de gestão retornam 403.
+- Perfil do vendedor retorna apenas `id`, `nome`, `email`, `nomeLoja`, horários e dias abertos.
+- Serviço retorna `id`, `nome`, `descricao`, `preco`, `tempo` e `vendedorId`, sem entidade de vendedor aninhada.
+- Agendamento retorna seus dados e resumos: cliente (`id`, `nome`), vendedor (`id`, `nomeLoja`) e o DTO de serviço. Não retorna senha, hash, permissões ou contatos pessoais aninhados.
+- Cadastro rejeita login já existente em qualquer uma das duas tabelas. Se dados legados contiverem mais de uma conta para o mesmo login, o login é recusado, sem escolher uma identidade arbitrariamente. Unicidade transacional global e unificação de identidades permanecem na próxima discussão de modelo.
+- Cabeçalho Authorization inválido, token expirado/malformado, token de conta removida ou senha incorreta retornam 401; falta de permissão retorna 403. Os erros tratados usam `status`, `codigo` e `mensagem`, sem stack trace.
+
+Exemplo de erro:
+
+```json
+{"status":403,"codigo":"ACESSO_NEGADO","mensagem":"Acesso negado"}
+```
+
+Os testes de integração usam o filtro JWT e os endpoints reais via MockMvc, com dois clientes e dois vendedores, e revertem suas gravações ao final de cada teste. Ainda faltam as regras de disponibilidade/conflito de agenda, a decisão do modelo de estabelecimento/profissionais e o cadastro de vendedor. Veja os resultados da [etapa 1](Planejamento/etapa-1-resultado.md) e [etapa 2](Planejamento/etapa-2-resultado.md).
 
 ## Referência técnica
 

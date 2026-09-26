@@ -1,93 +1,98 @@
 package com.marquify.beta.service;
 
-import com.marquify.beta.entity.Agendamento;
-import com.marquify.beta.entity.Servicos;
 import com.marquify.beta.entity.Vendedor;
-import com.marquify.beta.repository.agendamentoRepository;
-import com.marquify.beta.repository.servicoRepository;
-import com.marquify.beta.repository.vendedorRepository;
-import com.marquify.beta.request.ServicoRequest;
-import com.marquify.beta.request.VendedorRequest;
+import com.marquify.beta.entity.Servicos;
+import com.marquify.beta.infra.security.CurrentUser;
+import com.marquify.beta.repository.*;
+import com.marquify.beta.request.*;
+import com.marquify.beta.response.*;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @Service
 @AllArgsConstructor
+@Transactional
 public class VendedorService {
+    private final vendedorRepository vendedores;
+    private final agendamentoRepository agendamentos;
+    private final servicoRepository servicos;
+    private final CurrentUser currentUser;
 
-    private final vendedorRepository vendedorRepository;
-    private final agendamentoRepository agendamentoRepository;
-    private final servicoRepository servicoRepository;
-
-    public  List<Agendamento> getAgendamentos(VendedorRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedor_id())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
-        List<Agendamento> agendamentos = agendamentoRepository.findByVendedorId(request.getVendedor_id());
-
-        return agendamentos;
+    private Vendedor ownVendedor(Long id) {
+        currentUser.vendedor(id);
+        return vendedores.findById(id).orElseThrow(this::notFound);
     }
 
-    public Vendedor getMyInfos(Long id){
-        Vendedor vendedor = vendedorRepository.findById(id)
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
-        return vendedor;
+    @Transactional(readOnly = true)
+    public VendedorResponse getMyInfos(Long id) {
+        return VendedorResponse.from(ownVendedor(id));
     }
 
-    public Vendedor mudarNome(VendedorRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedor_id())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
+    @Transactional(readOnly = true)
+    public List<AgendamentoResponse> getAgendamentos(VendedorRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedor_id());
+        return agendamentos.findByVendedorId(vendedor.getId()).stream().map(AgendamentoResponse::from).toList();
+    }
+
+    public VendedorResponse mudarNome(VendedorRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedor_id());
+        if (request.getNewNome() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Campo obrigatório");
         vendedor.setNome(request.getNewNome());
-        return vendedorRepository.save(vendedor);
+        return VendedorResponse.from(vendedores.save(vendedor));
     }
 
-    public  Vendedor mudarNomeLoja (VendedorRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedor_id())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
+    public VendedorResponse mudarNomeLoja(VendedorRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedor_id());
+        if (request.getNewNomeLoja() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Campo obrigatório");
         vendedor.setNomeLoja(request.getNewNomeLoja());
-        return vendedorRepository.save(vendedor);
+        return VendedorResponse.from(vendedores.save(vendedor));
     }
-    public Vendedor mudarDiasAbertos(VendedorRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedor_id())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
+
+    public VendedorResponse mudarDiasAbertos(VendedorRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedor_id());
+        if (request.getNewDiasAbertos() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Campo obrigatório");
         vendedor.setDiasAbertos(request.getNewDiasAbertos());
-        return vendedorRepository.save(vendedor);
+        return VendedorResponse.from(vendedores.save(vendedor));
     }
 
-    public Vendedor mudarHoraAbertura(VendedorRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedor_id())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
+    public VendedorResponse mudarHoraAbertura(VendedorRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedor_id());
+        if (request.getNewHoraAbertura() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Campo obrigatório");
         vendedor.setHoraAbertura(request.getNewHoraAbertura());
-        return vendedorRepository.save(vendedor);
+        return VendedorResponse.from(vendedores.save(vendedor));
     }
 
-    public Vendedor mudarHoraFechamento(VendedorRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedor_id())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
+    public VendedorResponse mudarHoraFechamento(VendedorRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedor_id());
+        if (request.getNewHoraFechamento() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Campo obrigatório");
         vendedor.setHoraFechamento(request.getNewHoraFechamento());
-        return vendedorRepository.save(vendedor);
+        return VendedorResponse.from(vendedores.save(vendedor));
     }
-    public Servicos criarServico(ServicoRequest request){
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedorId())
-                .orElseThrow(()-> new RuntimeException("Vendedor nao encontrado"));
-        Servicos servico = new Servicos();
 
+    public ServicoResponse criarServico(ServicoRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedorId());
+        Servicos servico = new Servicos();
         servico.setNome(request.getNome());
         servico.setDescricao(request.getDescricao());
         servico.setPreco(request.getPreco());
         servico.setTempo(request.getTempo());
         servico.setVendedor(vendedor);
-
-        return servicoRepository.save(servico);
+        return ServicoResponse.from(servicos.save(servico));
     }
 
-    public void deletarServico(ServicoRequest request){
-        Servicos servico = servicoRepository.findById(request.getServicoId())
-                .orElseThrow(()-> new RuntimeException("Servico nao existe"));
-        Vendedor vendedor = vendedorRepository.findById(request.getVendedorId())
-                .orElseThrow(()-> new RuntimeException("Id invalido"));
+    public void deletarServico(ServicoRequest request) {
+        Vendedor vendedor = ownVendedor(request.getVendedorId());
+        if (request.getServicoId() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Serviço é obrigatório");
+        Servicos servico = servicos.findByIdAndVendedorId(request.getServicoId(), vendedor.getId())
+                .orElseThrow(this::notFound);
+        servicos.delete(servico);
+    }
 
-        servicoRepository.deleteById(request.getServicoId());
+    private ResponseStatusException notFound() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Recurso não encontrado");
     }
 }

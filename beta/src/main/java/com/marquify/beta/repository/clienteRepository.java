@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 
 public interface clienteRepository extends JpaRepository<Cliente, Long> {
-    UserDetails findByEmail(String email);
+    java.util.List<Cliente> findAllByEmail(String email);
+    boolean existsByEmail(String email);
 
 }

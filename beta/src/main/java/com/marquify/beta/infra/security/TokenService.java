@@ -1,7 +1,9 @@
 package com.marquify.beta.infra.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import com.marquify.beta.entity.Cliente;
+import com.marquify.beta.entity.Vendedor;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,11 +35,17 @@ public class TokenService {
 
         return Jwts.builder()
                 .issuer("marquify-api")
-                .subject(usuario.getUsername())
+                .subject(subject(usuario))
                 .issuedAt(agora)
                 .expiration(expiracao)
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    private String subject(UserDetails usuario) {
+        if (usuario instanceof Cliente cliente && cliente.getId() != null) return "cliente:" + cliente.getId();
+        if (usuario instanceof Vendedor vendedor && vendedor.getId() != null) return "vendedor:" + vendedor.getId();
+        throw new IllegalArgumentException("Identidade não suportada");
     }
 
     public String validarToken(String token) {
@@ -50,8 +58,7 @@ public class TokenService {
                     .getPayload();
 
             return claims.getSubject();
-        } catch (ExpiredJwtException | io.jsonwebtoken.security.SignatureException |
-                 io.jsonwebtoken.MalformedJwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
     }

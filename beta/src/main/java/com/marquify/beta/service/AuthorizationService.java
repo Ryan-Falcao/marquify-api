@@ -2,34 +2,45 @@ package com.marquify.beta.service;
 
 import com.marquify.beta.repository.clienteRepository;
 import com.marquify.beta.repository.vendedorRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
-
+@AllArgsConstructor
 public class AuthorizationService implements UserDetailsService {
-
-    @Autowired
-    vendedorRepository vendedorRepository;
-
-    @Autowired
-    clienteRepository clienteRepository;
+    private final vendedorRepository vendedores;
+    private final clienteRepository clientes;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UserDetails vendedor = vendedorRepository.findByEmail(username);
-        if (vendedor != null) {
-            return vendedor;
-        }
+    public UserDetails loadUserByUsername(String username) {
+        var matchingVendedores = vendedores.findAllByEmail(username);
+        var matchingClientes = clientes.findAllByEmail(username);
+        // Não escolher uma identidade arbitrária se houver dados legados duplicados.
+        if (matchingVendedores.size() + matchingClientes.size() != 1) throw unknown();
+        return matchingVendedores.isEmpty() ? matchingClientes.getFirst() : matchingVendedores.getFirst();
+    }
 
-        UserDetails cliente = clienteRepository.findByEmail(username);
-        if (cliente != null) {
-            return cliente;
+    public UserDetails loadTokenSubject(String subject) {
+        if (subject == null) throw unknown();
+        String[] parts = subject.split(":", -1);
+        if (parts.length != 2) throw unknown();
+        try {
+            long id = Long.parseLong(parts[1]);
+            if (id <= 0) throw unknown();
+            return switch (parts[0]) {
+                case "cliente" -> clientes.findById(id).orElseThrow(this::unknown);
+                case "vendedor" -> vendedores.findById(id).orElseThrow(this::unknown);
+                default -> throw unknown();
+            };
+        } catch (NumberFormatException exception) {
+            throw unknown();
         }
+    }
 
-        throw new UsernameNotFoundException("Usuário não encontrado: " + username);
+    private UsernameNotFoundException unknown() {
+        return new UsernameNotFoundException("Credenciais inválidas");
     }
 }
