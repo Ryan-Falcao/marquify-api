@@ -7,4 +7,5 @@ import org.springframework.security.core.userdetails.UserDetails;
 public interface vendedorRepository extends JpaRepository<Vendedor, Long> {
     java.util.List<Vendedor> findAllByEmail(String email);
     boolean existsByEmail(String email);
+    boolean existsByEstabelecimentoId(Long estabelecimentoId);
 }

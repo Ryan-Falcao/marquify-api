@@ -1,0 +1,8 @@
+CREATE TABLE estabelecimentos (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(160) NOT NULL,
+    fuso_horario VARCHAR(63) NOT NULL,
+    ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    criado_em DATETIME(6) NOT NULL,
+    atualizado_em DATETIME(6) NOT NULL
+);

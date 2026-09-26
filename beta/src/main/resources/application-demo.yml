@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:marquify-demo;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+
+api:
+  security:
+    token:
+      secret: marquify-demo-only-key-never-use-in-production
+      expiration: 8h

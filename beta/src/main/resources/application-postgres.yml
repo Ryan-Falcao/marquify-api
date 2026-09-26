@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/marquify}
+    username: ${DB_USERNAME:marquify}
+    password: ${DB_PASSWORD}
+  flyway:
+    locations: classpath:db/migration/postgresql
+    sql-migration-suffixes: .pgsql
+
+api:
+  security:
+    token:
+      secret: ${JWT_SECRET:marquify-local-postgres-only-key-change-before-production}
+      expiration: ${JWT_EXPIRATION:8h}

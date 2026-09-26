@@ -1,0 +1,22 @@
+CREATE TABLE disponibilidades_profissionais (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    profissional_id BIGINT NOT NULL,
+    dia_semana VARCHAR(9) NOT NULL,
+    hora_inicio TIME(6) NOT NULL,
+    hora_fim TIME(6) NOT NULL,
+    CONSTRAINT fk_disponibilidade_profissional FOREIGN KEY (profissional_id) REFERENCES profissionais(id),
+    CONSTRAINT uk_disponibilidade_profissional_dia UNIQUE (profissional_id, dia_semana)
+);
+
+INSERT INTO disponibilidades_profissionais (profissional_id, dia_semana, hora_inicio, hora_fim)
+SELECT v.profissional_principal_id,
+       CASE d.dia
+           WHEN 'Segunda' THEN 'MONDAY' WHEN 'Terca' THEN 'TUESDAY' WHEN 'Quarta' THEN 'WEDNESDAY'
+           WHEN 'Quinta' THEN 'THURSDAY' WHEN 'Sexta' THEN 'FRIDAY' WHEN 'Sabado' THEN 'SATURDAY'
+           WHEN 'Domingo' THEN 'SUNDAY'
+       END,
+       v.hora_abertura, v.hora_fechamento
+FROM vendedor v
+JOIN vendedor_dias_abertos d ON d.vendedor_id = v.id;
+
+CREATE INDEX idx_disponibilidade_profissional ON disponibilidades_profissionais(profissional_id, dia_semana);

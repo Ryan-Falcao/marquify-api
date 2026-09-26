@@ -11,6 +11,8 @@ Backend de agendamento para barbearias, clínicas e outros prestadores, com gest
 
 O projeto Maven fica em **beta**. Os exemplos usam PowerShell 7 a partir da raiz do repositório.
 
+O frontend de agendamento fica em **marquify-web**. Depois de iniciar a API, execute `node serve.mjs` dentro dessa pasta e abra `http://localhost:5173`.
+
 ## 1. Compilar e testar
 
 ```powershell
@@ -73,6 +75,20 @@ Crie um **banco vazio dedicado ao desenvolvimento** e um usuário com permissão
 Não aponte esta primeira migration para um banco existente com dados sem revisar o esquema e planejar sua adoção. O baseline automático está desativado: um banco não vazio sem histórico Flyway deve falhar, evitando assumir que seu esquema já corresponde à migration. Não use `ddl-auto=update` nem apague dados para contornar essa falha.
 
 ## 3. Configurar e executar
+
+### Demonstração sem MySQL
+
+Para testar a landing e o cadastro comercial sem instalar MySQL, use o perfil temporário `demo`. Os dados são apagados ao encerrar a API:
+
+```powershell
+# Dentro de beta, com JAVA_HOME apontando para o JDK 21:
+$env:SPRING_PROFILES_ACTIVE = 'demo'
+.\mvnw.cmd spring-boot:run
+```
+
+O servidor permanece em `http://localhost:8080`. Use esse perfil somente para demonstração local.
+
+### MySQL
 
 O Compose lê `.env`; **Spring Boot e Maven não o carregam automaticamente**. Configure as variáveis na sessão que iniciará a API:
 
@@ -149,19 +165,42 @@ Não são criadas contas com senha padrão. Para obter um cliente fictício de d
 | PUT | /vendedor/mudarHoraAbertura | Alterar abertura |
 | PUT | /vendedor/mudarHoraFechamento | Alterar fechamento |
 | POST | /vendedor/criarServico | Criar serviço |
-| DELETE | /vendedor/deletarServico | Excluir serviço |
+| POST | /auth/cadastro-comercial | Criar estabelecimento e conta administrativa |
+| DELETE | /vendedor/deletarServico | Desativar serviço (rota legada) |
+| GET | /vendedor/{vendedorId}/profissionais | Listar profissionais do estabelecimento |
+| POST | /vendedor/{vendedorId}/profissionais | Criar profissional |
+| PUT | /vendedor/{vendedorId}/profissionais/{profissionalId} | Alterar nome do profissional |
+| PATCH | /vendedor/{vendedorId}/profissionais/{profissionalId}/ativar | Ativar profissional |
+| PATCH | /vendedor/{vendedorId}/profissionais/{profissionalId}/desativar | Desativar profissional |
+| GET | /estabelecimentos/{estabelecimentoId}/servicos | Listar catálogo do estabelecimento |
+| POST | /estabelecimentos/{estabelecimentoId}/servicos | Criar serviço no catálogo |
+| PUT | /estabelecimentos/{estabelecimentoId}/servicos/{servicoId} | Atualizar serviço e profissionais |
+| PATCH | /estabelecimentos/{estabelecimentoId}/servicos/{servicoId}/ativar | Ativar serviço |
+| PATCH | /estabelecimentos/{estabelecimentoId}/servicos/{servicoId}/desativar | Desativar serviço |
+| GET | /publico/estabelecimentos/{estabelecimentoId} | Dados públicos do estabelecimento |
+| GET | /publico/estabelecimentos/{estabelecimentoId}/servicos | Catálogo ativo para clientes |
+| GET | /publico/estabelecimentos/{estabelecimentoId}/profissionais | Profissionais ativos para clientes |
+| GET | /publico/estabelecimentos/{estabelecimentoId}/profissionais/{profissionalId}/horarios?servicoId={id}&data=YYYY-MM-DD | Horários livres para agendamento |
+| GET | /vendedor/{vendedorId}/profissionais/{profissionalId}/disponibilidade | Consultar jornada semanal |
+| PUT | /vendedor/{vendedorId}/profissionais/{profissionalId}/disponibilidade | Substituir jornada semanal |
 
 `/auth/**` é público, `/vendedor/**` exige ADMIN e `/agendamento/**` exige USER. Além do perfil, as operações verificam a identidade e a propriedade do registro. Um vendedor só consulta/altera seu próprio cadastro, serviços e agenda. Um cliente só cria reservas para si e cancela as próprias; um vendedor ADMIN pode cancelar reservas da sua agenda.
 
 ## Contratos de segurança e integração
 
 - O JWT identifica a conta por `cliente:<id>` ou `vendedor:<id>`. Tokens antigos baseados apenas em e-mail são rejeitados: faça login novamente após atualizar o backend.
-- A criação de agendamento obtém o cliente pelo token. `clienteId` pode ser omitido; se informado, deve corresponder ao cliente autenticado. O serviço também precisa pertencer ao vendedor informado.
+- A criação e edição de serviço exigem `profissionaisIds`, com pelo menos um profissional ativo do estabelecimento do proprietário. O catálogo pertence ao estabelecimento; a resposta inclui os resumos desses profissionais.
+- A criação de agendamento obtém o cliente pelo token. `clienteId` pode ser omitido; se informado, deve corresponder ao cliente autenticado. A requisição também exige `profissionalId`; o profissional deve estar ativo, pertencer ao estabelecimento do serviço e oferecer o serviço selecionado.
 - Criar reservas em nome de clientes usando uma conta de vendedor ainda não é permitido; essa jornada depende da modelagem futura da carteira de clientes.
 - O cancelamento localiza o agendamento pelo ID e pelo dono autorizado. Recurso inexistente ou fora desse escopo retorna 404. IDs de vendedor diferentes da conta autenticada nas operações de gestão retornam 403.
 - Perfil do vendedor retorna apenas `id`, `nome`, `email`, `nomeLoja`, horários e dias abertos.
-- Serviço retorna `id`, `nome`, `descricao`, `preco`, `tempo` e `vendedorId`, sem entidade de vendedor aninhada.
-- Agendamento retorna seus dados e resumos: cliente (`id`, `nome`), vendedor (`id`, `nomeLoja`) e o DTO de serviço. Não retorna senha, hash, permissões ou contatos pessoais aninhados.
+- Serviço retorna `id`, `nome`, `descricao`, `preco`, `tempo`, `ativo`, `estabelecimentoId`, `vendedorId` e os profissionais associados (`id`, `nome`), sem entidades aninhadas. `estabelecimentoId` é o dono canônico do catálogo; `vendedorId` permanece temporariamente para compatibilidade com as rotas legadas.
+- A gestão do catálogo usa `/estabelecimentos/{estabelecimentoId}/servicos` e só aceita o estabelecimento da conta autenticada. A listagem inclui itens inativos para gestão; serviços inativos continuam no histórico, mas não podem receber novos agendamentos.
+- As rotas em `/publico/**` não exigem token e retornam somente dados necessários para a descoberta: estabelecimento ativo, serviços ativos e profissionais ativos. Elas não expõem e-mail, senha, horários internos ou datas administrativas.
+- A disponibilidade pública retorna inícios de horário em intervalos de 15 minutos, respeitando a jornada semanal do profissional, a duração do serviço e agendamentos já confirmados. A criação de agendamento faz a mesma validação no servidor e rejeita sobreposições.
+- CORS aceita por padrão `http://localhost:3000` e `http://localhost:5173`. Em outro ambiente, defina `CORS_ALLOWED_ORIGINS` com as origens separadas por vírgula.
+- A gestão de profissionais usa as rotas aninhadas em `/vendedor/{vendedorId}/profissionais`. O ID deve ser o mesmo da conta autenticada; profissionais de outro estabelecimento não podem ser consultados ou alterados.
+- Agendamento retorna seus dados e resumos: cliente (`id`, `nome`), vendedor (`id`, `nomeLoja`), estabelecimento (`id`, `nome`, `fusoHorario`), profissional (`id`, `nome`) e o DTO de serviço. Não retorna senha, hash, permissões ou contatos pessoais aninhados.
 - Cadastro rejeita login já existente em qualquer uma das duas tabelas. Se dados legados contiverem mais de uma conta para o mesmo login, o login é recusado, sem escolher uma identidade arbitrariamente. Unicidade transacional global e unificação de identidades permanecem na próxima discussão de modelo.
 - Cabeçalho Authorization inválido, token expirado/malformado, token de conta removida ou senha incorreta retornam 401; falta de permissão retorna 403. Os erros tratados usam `status`, `codigo` e `mensagem`, sem stack trace.
 
@@ -171,7 +210,7 @@ Exemplo de erro:
 {"status":403,"codigo":"ACESSO_NEGADO","mensagem":"Acesso negado"}
 ```
 
-Os testes de integração usam o filtro JWT e os endpoints reais via MockMvc, com dois clientes e dois vendedores, e revertem suas gravações ao final de cada teste. Ainda faltam as regras de disponibilidade/conflito de agenda, a decisão do modelo de estabelecimento/profissionais e o cadastro de vendedor. Veja os resultados da [etapa 1](Planejamento/etapa-1-resultado.md) e [etapa 2](Planejamento/etapa-2-resultado.md).
+Os testes de integração usam o filtro JWT e os endpoints reais via MockMvc, com dois clientes e dois vendedores, e revertem suas gravações ao final de cada teste. A jornada semanal, consulta de horários livres e bloqueio de sobreposições já estão cobertos. Ainda faltam bloqueios pontuais, remarcação e o cadastro de vendedor. Veja os resultados da [etapa 1](Planejamento/etapa-1-resultado.md), [etapa 2](Planejamento/etapa-2-resultado.md) e o planejamento de [disponibilidade](Planejamento/etapa-3j-disponibilidade-profissionais.md).
 
 ## Referência técnica
 

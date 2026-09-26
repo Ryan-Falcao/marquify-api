@@ -29,5 +29,7 @@ public class AgendamentoRequest {
 
     private Long servicoId;
 
+    private Long profissionalId;
+
     private Long agendamentoId;
 }

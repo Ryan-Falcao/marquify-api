@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalTime;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -23,4 +24,6 @@ public class ServicoRequest {
     private Long vendedorId;
 
     private Long servicoId;
+
+    private Set<Long> profissionaisIds;
 }

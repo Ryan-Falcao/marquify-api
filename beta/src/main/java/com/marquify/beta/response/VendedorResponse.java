@@ -6,10 +6,11 @@ import java.time.LocalTime;
 import java.util.Set;
 
 public record VendedorResponse(Long id, String nome, String email, String nomeLoja,
-                               LocalTime horaAbertura, LocalTime horaFechamento, Set<DiasAbertos> diasAbertos) {
+                               LocalTime horaAbertura, LocalTime horaFechamento, Set<DiasAbertos> diasAbertos,
+                               Long estabelecimentoId) {
     public static VendedorResponse from(Vendedor vendedor) {
         return new VendedorResponse(vendedor.getId(), vendedor.getNome(), vendedor.getEmail(),
                 vendedor.getNomeLoja(), vendedor.getHoraAbertura(), vendedor.getHoraFechamento(),
-                Set.copyOf(vendedor.getDiasAbertos()));
+                Set.copyOf(vendedor.getDiasAbertos()), vendedor.getEstabelecimento().getId());
     }
 }

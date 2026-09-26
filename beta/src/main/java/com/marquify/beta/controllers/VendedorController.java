@@ -25,9 +25,25 @@ public class VendedorController {
     public ResponseEntity<VendedorResponse> getMyInfos(@PathVariable Long id){
         return ResponseEntity.ok(vendedorService.getMyInfos(id));
     }
+    @GetMapping("/me")
+    public ResponseEntity<VendedorResponse> getMyInfos(){
+        return ResponseEntity.ok(vendedorService.getMyInfos());
+    }
     @GetMapping("/agendamentos")
     public ResponseEntity<List<AgendamentoResponse>> getAgendamentos(@RequestBody VendedorRequest request){
         return ResponseEntity.ok(vendedorService.getAgendamentos(request));
+    }
+    @GetMapping("/{id}/agendamentos")
+    public ResponseEntity<List<AgendamentoResponse>> getAgendamentosDoVendedor(@PathVariable Long id){
+        return ResponseEntity.ok(vendedorService.getAgendamentos(id));
+    }
+    @GetMapping("/me/agendamentos")
+    public ResponseEntity<List<AgendamentoResponse>> getMeusAgendamentos(){
+        return ResponseEntity.ok(vendedorService.getAgendamentos());
+    }
+    @GetMapping("/me/servicos")
+    public ResponseEntity<List<ServicoResponse>> getMeusServicos(){
+        return ResponseEntity.ok(vendedorService.listarMeusServicos());
     }
     @PutMapping("/mudarNome")
     public ResponseEntity<VendedorResponse> mudarNome(@RequestBody VendedorRequest request){

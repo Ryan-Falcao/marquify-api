@@ -51,11 +51,11 @@ As decisões abaixo devem ser registradas antes das fases que dependem delas. As
 
 | Decisão | Proposta inicial | Impacto |
 |---|---|---|
-| Estabelecimento e profissional | Separar conceitualmente negócio, usuário e recurso que recebe reservas; começar com um profissional/recurso por negócio se isso atender ao piloto | Define isolamento e unidade de conflito da agenda |
+| Estabelecimento e profissional | Um estabelecimento poderá ter vários profissionais; cada reserva ocupará a agenda do profissional escolhido | Define isolamento e unidade de conflito da agenda |
 | Quantidade de negócios por vendedor | Começar com um negócio por proprietário; evitar usar o papel global `ADMIN` como prova de propriedade | Define associação usuário/negócio |
 | Identidade do cliente | Uma identidade de acesso e vínculos próprios com os negócios atendidos | Permite carteira isolada sem duplicar credenciais |
 | Cadastro manual de clientes | Permitir cliente da carteira sem conta de acesso, caso necessário para atendimento por telefone/balcão | Separa cadastro comercial de autenticação |
-| Forma de reserva | Confirmar se cliente agenda por conta própria, vendedor agenda por ele, ou ambos | Define endpoints e permissões |
+| Forma de reserva | No MVP, somente o cliente agenda para a própria conta; agendamento pelo vendedor em nome de outro usuário fica para uma funcionalidade futura | Define endpoints e permissões |
 | Disponibilidade | Horários semanais por dia, intervalos, bloqueios e fuso do negócio | Define cálculo dos horários disponíveis |
 | Cancelamento e remarcação | Definir antecedência mínima e permissões de cada ator | Define transições e conflitos |
 | Status | Avaliar `AGENDADO`, `CONCLUIDO`, `CANCELADO` e `NAO_COMPARECEU`; adicionar confirmação apenas se existir essa etapa | Define agenda, histórico e métricas |

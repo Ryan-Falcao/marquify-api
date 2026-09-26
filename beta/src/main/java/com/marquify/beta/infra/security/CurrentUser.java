@@ -31,4 +31,11 @@ public class CurrentUser {
         }
         return vendedor;
     }
+
+    public Vendedor vendedor() {
+        if (!(principal() instanceof Vendedor vendedor) || vendedor.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Acesso negado");
+        }
+        return vendedor;
+    }
 }

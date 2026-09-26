@@ -6,6 +6,9 @@ import com.marquify.beta.repository.clienteRepository;
 import com.marquify.beta.repository.vendedorRepository;
 import com.marquify.beta.request.AuthenticationRequest;
 import com.marquify.beta.request.RegisterRequest;
+import com.marquify.beta.request.CadastroComercialRequest;
+import com.marquify.beta.response.CadastroComercialResponse;
+import com.marquify.beta.service.CadastroComercialService;
 import com.marquify.beta.response.LoginResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -24,6 +27,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {
+
+    @Autowired
+    private CadastroComercialService cadastroComercialService;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -56,5 +62,10 @@ public class AuthenticationController {
         this.clienteRepository.save(newUser);
 
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/cadastro-comercial")
+    public ResponseEntity<CadastroComercialResponse> cadastroComercial(@RequestBody @Valid CadastroComercialRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(cadastroComercialService.cadastrar(request));
     }
 }

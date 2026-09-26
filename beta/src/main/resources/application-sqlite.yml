@@ -1,0 +1,24 @@
+# Perfil local para demonstração. Os dados ficam no arquivo data/marquify.db.
+spring:
+  datasource:
+    url: ${SQLITE_DB_URL:jdbc:sqlite:./data/marquify.db}
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+  flyway:
+    enabled: false
+
+api:
+  security:
+    token:
+      secret: ${JWT_SECRET:marquify-local-sqlite-only-key-change-before-production}
+      expiration: ${JWT_EXPIRATION:8h}
+
+server:
+  tomcat:
+    basedir: ./data/tomcat
+  servlet:
+    session:
+      persistent: false

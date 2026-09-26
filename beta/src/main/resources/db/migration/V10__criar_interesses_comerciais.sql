@@ -1,0 +1,11 @@
+CREATE TABLE interesses_comerciais (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(160) NOT NULL,
+    estabelecimento VARCHAR(160) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    whatsapp VARCHAR(30) NOT NULL,
+    segmento VARCHAR(80) NOT NULL,
+    criado_em DATETIME(6) NOT NULL
+);
+
+CREATE INDEX idx_interesses_comerciais_criado_em ON interesses_comerciais(criado_em);

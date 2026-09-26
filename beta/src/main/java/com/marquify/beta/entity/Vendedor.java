@@ -35,6 +35,22 @@ public class Vendedor implements UserDetails {
     @NotNull
     private String email;
 
+    /**
+     * Relação de transição: cada conta de proprietário tem um estabelecimento.
+     * Profissionais são modelados em entidade própria, sem reutilizar esta conta.
+     */
+    @NotNull
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "estabelecimento_id", nullable = false, unique = true)
+    private Estabelecimento estabelecimento;
+
+    /** Profissional correspondente ao proprietário nos dados legados, quando ele atende clientes. */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profissional_principal_id", unique = true)
+    private Profissional profissionalPrincipal;
+
+    /** @deprecated Dados do negócio serão migrados gradualmente para Estabelecimento. */
+    @Deprecated(forRemoval = false)
     @NotNull
     private String nomeLoja;
 
@@ -57,6 +73,26 @@ public class Vendedor implements UserDetails {
 
     @NotNull
     private UserRole role;
+
+    public void vincularEstabelecimento(Estabelecimento estabelecimento) {
+        if (estabelecimento == null) {
+            throw new IllegalArgumentException("Estabelecimento é obrigatório");
+        }
+        this.estabelecimento = estabelecimento;
+    }
+
+    public void vincularProfissionalPrincipal(Profissional profissional) {
+        if (profissional == null) {
+            throw new IllegalArgumentException("Profissional principal é obrigatório");
+        }
+        boolean mesmoEstabelecimento = estabelecimento == profissional.getEstabelecimento()
+                || (estabelecimento != null && estabelecimento.getId() != null
+                && estabelecimento.getId().equals(profissional.getEstabelecimento().getId()));
+        if (estabelecimento != null && !mesmoEstabelecimento) {
+            throw new IllegalArgumentException("Profissional deve pertencer ao estabelecimento do proprietário");
+        }
+        this.profissionalPrincipal = profissional;
+    }
 
 
     @Override

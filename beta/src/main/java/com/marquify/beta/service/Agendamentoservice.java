@@ -18,6 +18,9 @@ import org.springframework.web.server.ResponseStatusException;
 public class Agendamentoservice {
     private final agendamentoRepository agendamentos;
     private final servicoRepository servicos;
+    private final vendedorRepository vendedores;
+    private final ProfissionalRepository profissionais;
+    private final DisponibilidadeService disponibilidade;
     private final CurrentUser currentUser;
 
     public AgendamentoResponse agendar(AgendamentoRequest request) {
@@ -25,14 +28,25 @@ public class Agendamentoservice {
         if (request.getClienteId() != null && !request.getClienteId().equals(cliente.getId())) {
             throw new AccessDeniedException("Acesso negado");
         }
-        if (request.getServicoId() == null || request.getVendedorId() == null
+        if (request.getServicoId() == null || request.getVendedorId() == null || request.getProfissionalId() == null
                 || request.getData() == null || request.getHoraInicio() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Serviço, vendedor, data e horário são obrigatórios");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Serviço, vendedor, profissional, data e horário são obrigatórios");
         }
-        Servicos servico = servicos.findByIdAndVendedorId(request.getServicoId(), request.getVendedorId())
+        Vendedor vendedor = vendedores.findById(request.getVendedorId()).orElseThrow(this::notFound);
+        Servicos servico = servicos.findByIdAndEstabelecimentoIdAndAtivoTrue(request.getServicoId(), vendedor.getEstabelecimento().getId())
                 .orElseThrow(this::notFound);
         if (servico.getTempo() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Serviço sem duração configurada");
+        }
+        Profissional profissional = profissionais.findByIdAndEstabelecimentoIdAndAtivoTrue(
+                request.getProfissionalId(), servico.getEstabelecimento().getId()).orElseThrow(this::notFound);
+        if (!servico.executadoPor(profissional.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Profissional não oferece o serviço selecionado");
+        }
+        if (!disponibilidade.horarioDisponivel(profissional, servico, request.getData(), request.getHoraInicio())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Horário indisponível");
         }
         Agendamento agendamento = new Agendamento();
         agendamento.setData(request.getData());
@@ -41,7 +55,9 @@ public class Agendamentoservice {
                 .plusMinutes(servico.getTempo().getMinute()));
         agendamento.setStatus(Status.AGENDADO);
         agendamento.setCliente(cliente);
-        agendamento.setVendedor(servico.getVendedor());
+        agendamento.setVendedor(vendedor);
+        agendamento.vincularEstabelecimento(servico.getEstabelecimento());
+        agendamento.vincularProfissional(profissional);
         agendamento.setServico(servico);
         return AgendamentoResponse.from(agendamentos.save(agendamento));
     }
