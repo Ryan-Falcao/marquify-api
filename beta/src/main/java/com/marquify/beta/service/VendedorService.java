@@ -7,18 +7,22 @@ import com.marquify.beta.infra.security.CurrentUser;
 import com.marquify.beta.repository.*;
 import com.marquify.beta.request.*;
 import com.marquify.beta.response.*;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Transactional
 public class VendedorService {
     private final vendedorRepository vendedores;
@@ -26,6 +30,9 @@ public class VendedorService {
     private final servicoRepository servicos;
     private final ProfissionalRepository profissionais;
     private final CurrentUser currentUser;
+
+    @Value("${api.public-web-url:http://localhost:5173}")
+    private String publicWebUrl;
 
     private Vendedor ownVendedor(Long id) {
         currentUser.vendedor(id);
@@ -48,6 +55,13 @@ public class VendedorService {
     }
 
     @Transactional(readOnly = true)
+    public LinkAgendamentoResponse linkAgendamento() {
+        String codigoPublico = vendedorAtual().getEstabelecimento().getCodigoPublico();
+        String base = publicWebUrl.replaceAll("/+$", "");
+        return new LinkAgendamentoResponse(codigoPublico, base + "/agendar/" + codigoPublico);
+    }
+
+    @Transactional(readOnly = true)
     public List<AgendamentoResponse> getAgendamentos(VendedorRequest request) {
         return getAgendamentos(request.getVendedor_id());
     }
@@ -62,6 +76,37 @@ public class VendedorService {
     public List<AgendamentoResponse> getAgendamentos() {
         Vendedor vendedor = vendedorAtual();
         return agendamentos.findByVendedorId(vendedor.getId()).stream().map(AgendamentoResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgendamentoResponse> getAgendamentos(LocalDate inicio, LocalDate fim) {
+        Vendedor vendedor = vendedorAtual();
+        if (inicio == null || fim == null || fim.isBefore(inicio)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Intervalo de datas inválido");
+        }
+        return agendamentos.findAllByVendedorIdAndDataBetweenOrderByDataAscHoraInicioAsc(vendedor.getId(), inicio, fim)
+                .stream().map(AgendamentoResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DashboardResponse dashboard() {
+        Vendedor vendedor = vendedorAtual();
+        Long estabelecimentoId = vendedor.getEstabelecimento().getId();
+        ZonedDateTime agora = ZonedDateTime.now(ZoneId.of(vendedor.getEstabelecimento().getFusoHorario()));
+        LocalDate hoje = agora.toLocalDate();
+        List<AgendamentoResponse> proximosAgendamentos = agendamentos
+                .findAllByVendedorIdAndDataAndStatusOrderByHoraInicioAsc(vendedor.getId(), hoje, com.marquify.beta.entity.Status.AGENDADO)
+                .stream().map(AgendamentoResponse::from).toList();
+
+        return new DashboardResponse(
+                vendedor.getNome(),
+                servicos.countByEstabelecimentoIdAndAtivoTrue(estabelecimentoId),
+                profissionais.countByEstabelecimentoIdAndAtivoTrue(estabelecimentoId),
+                proximosAgendamentos.size(),
+                agendamentos.totalFinalizado(vendedor.getId(), com.marquify.beta.entity.Status.AGENDADO,
+                        hoje, agora.toLocalTime()),
+                proximosAgendamentos
+        );
     }
 
     public VendedorResponse mudarNome(VendedorRequest request) {
@@ -141,6 +186,34 @@ public class VendedorService {
         Vendedor vendedor = vendedorDoEstabelecimento(estabelecimentoId);
         Servicos servico = new Servicos();
         preencherServico(servico, request, vendedor);
+        return ServicoResponse.from(servicos.save(servico));
+    }
+
+    public ServicoResponse criarServicoAtual(ServicoCatalogoRequest request) {
+        Vendedor vendedor = vendedorAtual();
+        Servicos servico = new Servicos();
+        preencherServico(servico, request, vendedor);
+        return ServicoResponse.from(servicos.save(servico));
+    }
+
+    public ServicoResponse atualizarServicoAtual(Long servicoId, ServicoCatalogoRequest request) {
+        Vendedor vendedor = vendedorAtual();
+        Servicos servico = servicoDoEstabelecimento(servicoId, vendedor.getEstabelecimento().getId());
+        preencherServico(servico, request, vendedor);
+        return ServicoResponse.from(servicos.save(servico));
+    }
+
+    public ServicoResponse ativarServicoAtual(Long servicoId) {
+        Vendedor vendedor = vendedorAtual();
+        Servicos servico = servicoDoEstabelecimento(servicoId, vendedor.getEstabelecimento().getId());
+        servico.ativar();
+        return ServicoResponse.from(servicos.save(servico));
+    }
+
+    public ServicoResponse desativarServicoAtual(Long servicoId) {
+        Vendedor vendedor = vendedorAtual();
+        Servicos servico = servicoDoEstabelecimento(servicoId, vendedor.getEstabelecimento().getId());
+        servico.desativar();
         return ServicoResponse.from(servicos.save(servico));
     }
 

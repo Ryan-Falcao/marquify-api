@@ -1,0 +1,14 @@
+import { AppointmentActions } from '../components/AppointmentActions';
+import { FormEvent, useEffect, useState } from 'react';
+import { ApiError, customerAppointments, loginCustomer } from '../services/api';
+import type { Appointment } from '../types';
+
+export function MyAppointmentsPage() {
+  const [accessToken, setAccessToken] = useState(() => localStorage.getItem('marquify-client-token') || '');
+  const [items, setItems] = useState<Appointment[]>([]); const [loading, setLoading] = useState(Boolean(accessToken)); const [message, setMessage] = useState('');
+  useEffect(() => { if (!accessToken) return; setLoading(true); customerAppointments(accessToken).then(setItems).catch(() => { localStorage.removeItem('marquify-client-token'); setAccessToken(''); setMessage('Sua sessão expirou. Entre novamente.'); }).finally(() => setLoading(false)); }, [accessToken]);
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); setMessage(''); try { const result = await loginCustomer({ login: String(form.get('email')), senha: String(form.get('senha')) }); localStorage.setItem('marquify-client-token', result.token); setAccessToken(result.token); } catch (error) { setMessage(error instanceof ApiError ? error.message : 'Não foi possível entrar.'); } }
+  if (!accessToken) return <main className="client-area"><a className="logo" href="/">marquify<span>.</span></a><section><p className="tag">ÁREA DO CLIENTE</p><h1>Seus agendamentos</h1><p>Entre com a conta criada durante seu primeiro agendamento.</p><form className="customer-login" onSubmit={submit}><label>E-mail<input name="email" type="email" required /></label><label>Senha<input name="senha" type="password" minLength={6} required /></label>{message && <p className="booking-error">{message}</p>}<button className="button">Entrar →</button></form></section></main>;
+  return <main className="client-area"><a className="logo" href="/">marquify<span>.</span></a><section><div className="client-heading"><div><p className="tag">ÁREA DO CLIENTE</p><h1>Seus agendamentos</h1></div><button onClick={() => { localStorage.removeItem('marquify-client-token'); setAccessToken(''); }}>Sair</button></div>{message && <p className="booking-error">{message}</p>}{loading ? <p>Carregando…</p> : <div className="client-appointments">{items.length ? items.map((item) => <article key={item.id}><div><small>{new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR')}</small><h3>{item.servico?.nome || 'Serviço'}</h3><p>{item.horaInicio.slice(0, 5)} · {item.profissional?.nome} · {item.estabelecimento?.nome}</p></div><div><span className={item.status.toLowerCase()}>{item.status}</span><AppointmentActions item={item} token={accessToken} onUpdated={updated => setItems(current => current.map(entry => entry.id === updated.id ? updated : entry))} /></div></article>) : <p>Nenhum agendamento encontrado.</p>}</div>}</section></main>;
+}
+

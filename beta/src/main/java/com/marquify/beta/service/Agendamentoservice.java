@@ -11,6 +11,12 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.List;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.math.BigDecimal;
 
 @Service
 @AllArgsConstructor
@@ -34,12 +40,13 @@ public class Agendamentoservice {
                     "Serviço, vendedor, profissional, data e horário são obrigatórios");
         }
         Vendedor vendedor = vendedores.findById(request.getVendedorId()).orElseThrow(this::notFound);
+        validarMomentoFuturo(request.getData(), request.getHoraInicio(), vendedor);
         Servicos servico = servicos.findByIdAndEstabelecimentoIdAndAtivoTrue(request.getServicoId(), vendedor.getEstabelecimento().getId())
                 .orElseThrow(this::notFound);
         if (servico.getTempo() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Serviço sem duração configurada");
         }
-        Profissional profissional = profissionais.findByIdAndEstabelecimentoIdAndAtivoTrue(
+        Profissional profissional = profissionais.findAtivoDoEstabelecimentoParaReserva(
                 request.getProfissionalId(), servico.getEstabelecimento().getId()).orElseThrow(this::notFound);
         if (!servico.executadoPor(profissional.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -52,7 +59,8 @@ public class Agendamentoservice {
         agendamento.setData(request.getData());
         agendamento.setHoraInicio(request.getHoraInicio());
         agendamento.setHoraFim(request.getHoraInicio().plusHours(servico.getTempo().getHour())
-                .plusMinutes(servico.getTempo().getMinute()));
+                .plusMinutes(servico.getTempo().getMinute()).plusSeconds(servico.getTempo().getSecond()));
+        agendamento.setValorCobrado(BigDecimal.valueOf(servico.getPreco()));
         agendamento.setStatus(Status.AGENDADO);
         agendamento.setCliente(cliente);
         agendamento.setVendedor(vendedor);
@@ -63,6 +71,16 @@ public class Agendamentoservice {
     }
 
     public AgendamentoResponse cancelar(AgendamentoRequest request) {
+        Agendamento agendamento = reservaAutorizada(request.getAgendamentoId(), true);
+        if (agendamento.getStatus() == Status.CANCELADO) return AgendamentoResponse.from(agendamento);
+        validarAlteracao(agendamento);
+        agendamento.setStatus(Status.CANCELADO);
+        return AgendamentoResponse.from(agendamentos.save(agendamento));
+    }
+
+    private Agendamento reservaAutorizada(Long id, boolean bloquear) {
+        AgendamentoRequest request = new AgendamentoRequest();
+        request.setAgendamentoId(id);
         if (request.getAgendamentoId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Agendamento é obrigatório");
         }
@@ -77,11 +95,68 @@ public class Agendamentoservice {
         } else {
             throw new AccessDeniedException("Acesso negado");
         }
-        agendamento.setStatus(Status.CANCELADO);
-        return AgendamentoResponse.from(agendamentos.save(agendamento));
+        if (bloquear) {
+            agendamento = agendamentos.findParaAlteracao(id).orElseThrow(this::notFound);
+            // Refresh after waiting for a concurrent cancellation/reschedule to commit.
+            entityManager.refresh(agendamento);
+        }
+        return agendamento;
+    }
+
+    private final jakarta.persistence.EntityManager entityManager;
+
+    private void validarAlteracao(Agendamento reserva) {
+        if (reserva.getStatus() != Status.AGENDADO) throw new ResponseStatusException(HttpStatus.CONFLICT, "Agendamento cancelado não pode ser remarcado");
+        var agora = java.time.ZonedDateTime.now(ZoneId.of(reserva.getEstabelecimento().getFusoHorario()));
+        if (!reserva.getData().atTime(reserva.getHoraInicio()).isAfter(agora.toLocalDateTime()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Só é possível cancelar ou remarcar antes do início do atendimento");
+    }
+
+    private LocalTime duracaoContratada(Agendamento reserva) {
+        return LocalTime.ofSecondOfDay(java.time.Duration.between(reserva.getHoraInicio(), reserva.getHoraFim()).getSeconds());
+    }
+
+    public AgendamentoResponse remarcar(Long id, LocalDate data, LocalTime hora) {
+        if (data == null || hora == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe a nova data e horário");
+        Agendamento reserva = reservaAutorizada(id, true);
+        validarAlteracao(reserva);
+        Profissional profissional = profissionais.findAtivoDoEstabelecimentoParaReserva(
+                reserva.getProfissional().getId(), reserva.getEstabelecimento().getId()).orElseThrow(this::notFound);
+        LocalTime duracao = duracaoContratada(reserva);
+        if (!disponibilidade.horarioDisponivel(profissional, duracao, data, hora, reserva.getId()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Horário indisponível. Seu agendamento original foi mantido");
+        reserva.setData(data);
+        reserva.setHoraInicio(hora);
+        reserva.setHoraFim(hora.plusSeconds(duracao.toSecondOfDay()));
+        return AgendamentoResponse.from(agendamentos.save(reserva));
+    }
+
+    @Transactional(readOnly = true)
+    public List<LocalTime> horariosRemarcacao(Long id, LocalDate data) {
+        Agendamento reserva = reservaAutorizada(id, false);
+        validarAlteracao(reserva);
+        if (!reserva.getProfissional().isAtivo()) return List.of();
+        LocalTime duracao = duracaoContratada(reserva);
+        return disponibilidade.horariosRemarcacao(reserva.getProfissional(), duracao, data, id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgendamentoResponse> meusAgendamentos() {
+        Cliente cliente = currentUser.cliente();
+        return agendamentos.findAllByClienteIdOrderByDataDescHoraInicioDesc(cliente.getId())
+                .stream().map(AgendamentoResponse::from).toList();
     }
 
     private ResponseStatusException notFound() {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Recurso não encontrado");
+    }
+
+    private void validarMomentoFuturo(LocalDate data, LocalTime horaInicio, Vendedor vendedor) {
+        ZoneId fusoHorario = ZoneId.of(vendedor.getEstabelecimento().getFusoHorario());
+        var agora = java.time.ZonedDateTime.now(fusoHorario);
+        if (data.isBefore(agora.toLocalDate())
+                || (data.isEqual(agora.toLocalDate()) && !horaInicio.isAfter(agora.toLocalTime()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível agendar em um horário que já passou");
+        }
     }
 }

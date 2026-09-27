@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/target
+**/dist
+**/.env
+**/.env.*
+**/data
+**/*.log
+.tools
+v0-landing
+v0-dashboard-page
+ops/backups

@@ -1,8 +1,10 @@
 package com.marquify.beta.controllers;
 
 import com.marquify.beta.request.ServicoCatalogoRequest;
+import com.marquify.beta.request.PosicaoFotoRequest;
 import com.marquify.beta.response.ServicoResponse;
 import com.marquify.beta.service.VendedorService;
+import com.marquify.beta.service.ServicoFotoService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -23,6 +27,7 @@ import java.util.List;
 @AllArgsConstructor
 public class EstabelecimentoServicoController {
     private final VendedorService vendedorService;
+    private final ServicoFotoService fotos;
 
     @GetMapping
     public ResponseEntity<List<ServicoResponse>> listar(@PathVariable Long estabelecimentoId) {
@@ -53,5 +58,18 @@ public class EstabelecimentoServicoController {
     public ResponseEntity<ServicoResponse> desativar(@PathVariable Long estabelecimentoId,
                                                        @PathVariable Long servicoId) {
         return ResponseEntity.ok(vendedorService.desativarServico(estabelecimentoId, servicoId));
+    }
+
+    @PutMapping(path = "/{servicoId}/foto", consumes = "multipart/form-data")
+    public ResponseEntity<ServicoResponse> foto(@PathVariable Long estabelecimentoId, @PathVariable Long servicoId,
+                                                 @RequestPart("foto") MultipartFile foto) {
+        return ResponseEntity.ok(ServicoResponse.from(fotos.salvar(estabelecimentoId, servicoId, foto)));
+    }
+
+    @PatchMapping("/{servicoId}/foto-posicao")
+    public ResponseEntity<ServicoResponse> posicionarFoto(@PathVariable Long estabelecimentoId,
+                                                           @PathVariable Long servicoId,
+                                                           @RequestBody @Valid PosicaoFotoRequest posicao) {
+        return ResponseEntity.ok(ServicoResponse.from(fotos.posicionar(estabelecimentoId, servicoId, posicao)));
     }
 }

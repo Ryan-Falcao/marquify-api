@@ -31,6 +31,9 @@ public class SecurityConfigurations {
     @Autowired
     private JwtAuthFilter jwtAuthFilter;
 
+    @Autowired
+    private LoginAttemptLimiter loginAttemptLimiter;
+
     //configuracoes de acessos a request
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception{
@@ -42,15 +45,19 @@ public class SecurityConfigurations {
                         .authenticationEntryPoint((request, response, exception) -> SecurityErrors.unauthorized(response))
                         .accessDeniedHandler((request, response, exception) -> SecurityErrors.forbidden(response)))
                 .authorizeHttpRequests(authorize -> authorize
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/publico/**").permitAll()
                         .requestMatchers("/interesses/**").permitAll()
                         .requestMatchers("/vendedor/**").hasRole("ADMIN")
                         .requestMatchers("/estabelecimentos/**").hasRole("ADMIN")
                         .requestMatchers("/agendamento/**").hasRole("USER")
+                        .requestMatchers("/cliente/**").hasRole("USER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new LoginRateLimitFilter(loginAttemptLimiter), JwtAuthFilter.class)
                 .build();
     }
 
@@ -73,7 +80,7 @@ public class SecurityConfigurations {
                 .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setExposedHeaders(List.of("Authorization", "Retry-After", "X-Request-ID"));
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

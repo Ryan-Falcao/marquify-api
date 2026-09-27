@@ -1,0 +1,1 @@
+ALTER TABLE servicos ADD COLUMN foto_arquivo VARCHAR(120) NULL;

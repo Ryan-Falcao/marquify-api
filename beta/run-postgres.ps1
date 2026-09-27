@@ -11,6 +11,11 @@ Get-Content $envFile | Where-Object { $_ -match '^[A-Z_]+=' } | ForEach-Object {
     Set-Item "Env:$name" $value
 }
 
+$postgresPort = if ($env:POSTGRES_PORT) { [int]$env:POSTGRES_PORT } else { 5432 }
+if (-not (Test-NetConnection -ComputerName 'localhost' -Port $postgresPort -InformationLevel Quiet -WarningAction SilentlyContinue)) {
+    throw "PostgreSQL não está acessível em localhost:${postgresPort}. Execute .\start-postgres.ps1 depois de abrir o Docker Desktop."
+}
+
 $env:JAVA_HOME = $jdk.FullName
 $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 $env:SPRING_PROFILES_ACTIVE = 'postgres'

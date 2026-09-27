@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EstabelecimentoRepository extends JpaRepository<Estabelecimento, Long> {
     java.util.Optional<Estabelecimento> findByIdAndAtivoTrue(Long id);
+    java.util.Optional<Estabelecimento> findByCodigoPublicoAndAtivoTrue(String codigoPublico);
 }

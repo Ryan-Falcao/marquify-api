@@ -1,0 +1,10 @@
+.appointment-actions { display: grid; gap: 10px; }
+.appointment-actions > div { display: flex; gap: 10px; flex-wrap: wrap; }
+.appointment-actions .appointment-action-overlay { position: fixed; inset: 0; z-index: 1000; background: #17232c88; display: grid; place-items: center; padding: 16px; }
+.appointment-actions .appointment-action-dialog { background: white; color: #202b31; padding: 24px; border-radius: 18px; width: min(100%, 480px); max-height: 85dvh; overflow-y: auto; box-sizing: border-box; }
+.appointment-action-dialog p { line-height: 1.5; margin: 12px 0; }
+.appointment-action-dialog input { display: block; width: 100%; min-height: 44px; box-sizing: border-box; }
+.appointment-action-dialog .reschedule-times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 230px; overflow-y: auto; margin-top: 16px; }
+.appointment-action-dialog button { min-height: 44px; border: 1px solid #ddd; padding: 8px 12px; border-radius: 8px; }
+.appointment-action-dialog .selected { background: #202b31; color: white; }
+.appointment-action-dialog footer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }

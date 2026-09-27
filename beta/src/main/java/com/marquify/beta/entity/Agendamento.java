@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "agendamentos")
@@ -27,6 +28,9 @@ public class Agendamento {
     private LocalTime horaInicio;
 
     private LocalTime horaFim;
+
+    @Column(name = "valor_cobrado", precision = 12, scale = 2)
+    private BigDecimal valorCobrado;
 
     private Status status;
 

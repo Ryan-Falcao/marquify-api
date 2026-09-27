@@ -1,4 +1,6 @@
 .tools/
+ops/backups/
+*.log
 .env
 .env.*
 !.env.example

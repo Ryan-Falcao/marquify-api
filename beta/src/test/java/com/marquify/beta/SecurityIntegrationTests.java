@@ -15,6 +15,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.mock.web.MockMultipartFile;
+import com.jayway.jsonpath.JsonPath;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Transactional
 class SecurityIntegrationTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean java.time.Clock dashboardClock;
     @Autowired MockMvc mvc;
     @Autowired TokenService tokens;
     @Autowired TokenProperties tokenProperties;
@@ -57,6 +60,8 @@ class SecurityIntegrationTests {
 
     @BeforeEach
     void fixtures() {
+        org.mockito.Mockito.when(dashboardClock.withZone(org.mockito.ArgumentMatchers.any(java.time.ZoneId.class)))
+                .thenAnswer(invocation -> java.time.Clock.fixed(java.time.Instant.parse("2027-01-04T13:00:00Z"), invocation.getArgument(0)));
         String hash = encoder.encode("test-password");
         clienteA = clientes.save(new Cliente("cliente-a@example.test", hash));
         clienteB = clientes.save(new Cliente("cliente-b@example.test", hash));
@@ -77,6 +82,75 @@ class SecurityIntegrationTests {
     }
 
     @Test
+    void dashboardFiltersPaginatesAndKeepsOtherBusinessesPrivate() throws Exception {
+        reservaA.setData(LocalDate.of(2027,1,4));
+        reservaA.setValorCobrado(new java.math.BigDecimal("30.00"));
+        var second = reserva(clienteA,vendedorA,servicoA); second.setData(reservaA.getData()); second.setHoraInicio(LocalTime.of(11,0)); second.setHoraFim(LocalTime.of(11,30));
+        agendamentos.flush();
+        String endpoint = "/vendedor/me/dashboard/agendamentos";
+        as(vendedorA,get(endpoint).param("tamanho","1").param("direcao","ASC"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItens").value(2))
+                .andExpect(jsonPath("$.totalPaginas").value(2)).andExpect(jsonPath("$.itens.length()").value(1))
+                .andExpect(jsonPath("$.itens[0].id").value(reservaA.getId()));
+        as(vendedorA,get(endpoint).param("tamanho","1").param("pagina","1").param("direcao","ASC"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].id").value(second.getId()));
+        as(vendedorA,get(endpoint).param("clienteId",clienteB.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItens").value(0));
+        as(vendedorA,get(endpoint).param("profissionalId",vendedorB.getProfissionalPrincipal().getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItens").value(0));
+        as(vendedorA,get(endpoint).param("status","PREVISTO").param("clienteId",clienteA.getId().toString())
+                .param("profissionalId",vendedorA.getProfissionalPrincipal().getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItens").value(1));
+        mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+        as(clienteA,get(endpoint)).andExpect(status().isForbidden());
+        as(clienteA,get("/vendedor/me/dashboard/indicadores")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void dashboardAggregatesFullPeriodUsingContractPriceAndDerivedStatus() throws Exception {
+        LocalDate date = LocalDate.of(2027,1,4);
+        reservaA.setData(date); reservaA.setHoraInicio(LocalTime.of(8,0)); reservaA.setHoraFim(LocalTime.of(8,30)); reservaA.setValorCobrado(new java.math.BigDecimal("30"));
+        var current = reserva(clienteA,vendedorA,servicoA); current.setData(date); current.setHoraInicio(LocalTime.of(9,45)); current.setHoraFim(LocalTime.of(10,15)); current.setValorCobrado(new java.math.BigDecimal("40"));
+        var future = reserva(clienteA,vendedorA,servicoA); future.setData(date); future.setHoraInicio(LocalTime.of(11,0)); future.setHoraFim(LocalTime.of(11,30)); future.setValorCobrado(new java.math.BigDecimal("50"));
+        var canceled = reserva(clienteA,vendedorA,servicoA); canceled.setData(date); canceled.setStatus(Status.CANCELADO); canceled.setValorCobrado(new java.math.BigDecimal("100"));
+        servicoA.setPreco(999.0); reservaB.setData(date); reservaB.setValorCobrado(new java.math.BigDecimal("10000"));
+        agendamentos.flush();
+        String endpoint = "/vendedor/me/dashboard/indicadores";
+        as(vendedorA,get(endpoint).param("tamanho","1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalAgendamentos").value(4))
+                .andExpect(jsonPath("$.previstos").value(1)).andExpect(jsonPath("$.emAtendimento").value(1))
+                .andExpect(jsonPath("$.finalizados").value(1)).andExpect(jsonPath("$.cancelamentos").value(1))
+                .andExpect(jsonPath("$.faturamentoRealizado").value(30)).andExpect(jsonPath("$.faturamentoPrevisto").value(90));
+        as(vendedorA,get(endpoint).param("status","CANCELADO"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalAgendamentos").value(1))
+                .andExpect(jsonPath("$.faturamentoPrevisto").value(0));
+        as(vendedorA,get(endpoint).param("inicio","2027-01-05").param("fim","2027-01-06"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalAgendamentos").value(0))
+                .andExpect(jsonPath("$.finalizados").value(0)).andExpect(jsonPath("$.faturamentoRealizado").value(0));
+    }
+
+    @Test
+    void dashboardUsesBusinessDateAcrossMidnight() throws Exception {
+        org.mockito.Mockito.when(dashboardClock.withZone(org.mockito.ArgumentMatchers.any(java.time.ZoneId.class)))
+                .thenAnswer(invocation -> java.time.Clock.fixed(java.time.Instant.parse("2027-01-05T01:00:00Z"), invocation.getArgument(0)));
+        reservaA.setData(LocalDate.of(2027,1,4)); reservaA.setHoraInicio(LocalTime.of(22,0)); reservaA.setHoraFim(LocalTime.of(22,30));
+        agendamentos.flush();
+        as(vendedorA,get("/vendedor/me/dashboard/agendamentos"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.periodo.inicio").value("2027-01-04"))
+                .andExpect(jsonPath("$.periodo.fusoHorario").value("America/Sao_Paulo"))
+                .andExpect(jsonPath("$.itens[0].status").value("EM_ATENDIMENTO"));
+    }
+
+    @Test
+    void dashboardRejectsInvalidFilters() throws Exception {
+        String path = "/vendedor/me/dashboard/agendamentos";
+        as(vendedorA,get(path).param("inicio","2027-01-04")).andExpect(status().isBadRequest());
+        as(vendedorA,get(path).param("inicio","2027-01-05").param("fim","2027-01-04")).andExpect(status().isBadRequest());
+        for (String[] invalid : new String[][]{{"pagina","-1"},{"tamanho","101"},{"status","FAKE"},{"ordenarPor","senha"},{"direcao","FAKE"},{"clienteId","0"},{"inicio","not-a-date"}})
+            as(vendedorA,get(path).param(invalid[0],invalid[1])).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void frontendCanReadOnlyActivePublicCatalogWithCors() throws Exception {
         Servicos inativo = servico(vendedorA);
         inativo.desativar();
@@ -84,7 +158,7 @@ class SecurityIntegrationTests {
         Profissional profissionalInativo = new Profissional(vendedorA.getEstabelecimento(), "Indisponível");
         profissionalInativo.desativar();
         profissionais.saveAndFlush(profissionalInativo);
-        String base = "/publico/estabelecimentos/" + vendedorA.getEstabelecimento().getId();
+        String base = "/publico/e/" + vendedorA.getEstabelecimento().getCodigoPublico();
 
         mvc.perform(get(base)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(vendedorA.getEstabelecimento().getId()))
@@ -102,6 +176,64 @@ class SecurityIntegrationTests {
                         .header("Access-Control-Request-Method", "GET"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+        mvc.perform(get("/publico/estabelecimentos/" + vendedorA.getEstabelecimento().getId()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void publicBookingLinkUsesOpaqueCodeInsteadOfInternalEstablishmentId() throws Exception {
+        String codigo = vendedorA.getEstabelecimento().getCodigoPublico();
+
+        assertThat(codigo).isNotBlank().isNotEqualTo(vendedorA.getEstabelecimento().getId().toString());
+        mvc.perform(get("/publico/e/" + codigo)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(vendedorA.getEstabelecimento().getId()));
+        mvc.perform(get("/publico/e/" + codigo + "/servicos")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(servicoA.getId()));
+        as(vendedorA, get("/vendedor/me/link-agendamento")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigoPublico").value(codigo))
+                .andExpect(jsonPath("$.urlAgendamento").value("http://localhost:5173/agendar/" + codigo));
+    }
+
+    @Test
+    void sellerPublishesCatalogAppearanceForOtherDevices() throws Exception {
+        String publicCode = vendedorA.getEstabelecimento().getCodigoPublico();
+        as(vendedorA, put("/vendedor/me/personalizacao").content("""
+                {"nome":"Ateliê Aurora","descricao":"Agende seu momento.","corPrimaria":"#335F55",
+                 "logo":null,"capa":null,"capaPosicaoX":42,"capaPosicaoY":68,"tema":"{}"}
+                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Ateliê Aurora"))
+                .andExpect(jsonPath("$.corPrimaria").value("#335F55"));
+
+        mvc.perform(get("/publico/e/" + publicCode)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.descricaoPublica").value("Agende seu momento."))
+                .andExpect(jsonPath("$.temaPublico").value("{}"))
+                .andExpect(jsonPath("$.capaPosicaoX").value(42))
+                .andExpect(jsonPath("$.capaPosicaoY").value(68));
+        as(vendedorB, get("/vendedor/me/personalizacao")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value(vendedorB.getEstabelecimento().getNome()));
+    }
+
+    @Test
+    void rejectsExecutableImageInCatalogAppearance() throws Exception {
+        as(vendedorA, put("/vendedor/me/personalizacao").content("""
+                {"nome":"Loja segura","descricao":"Teste","corPrimaria":"#335F55",
+                 "logo":"data:image/svg+xml;base64,PHNjcmlwdD4=","capa":null,
+                 "capaPosicaoX":50,"capaPosicaoY":50}
+                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsScriptDisguisedAsServiceImage() throws Exception {
+        MockMultipartFile arquivo = new MockMultipartFile("foto", "servico.png", "image/png",
+                "<script>alert('xss')</script>".getBytes(StandardCharsets.UTF_8));
+        mvc.perform(multipart("/estabelecimentos/" + vendedorA.getEstabelecimento().getId()
+                + "/servicos/" + servicoA.getId() + "/foto").file(arquivo).with(request -> {
+                    request.setMethod("PUT");
+                    return request;
+                }).header("Authorization", "Bearer " + tokens.gerarToken(vendedorA)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -115,6 +247,8 @@ class SecurityIntegrationTests {
 
     @Test
     void dashboardUsesOnlyTheSellerIdentifiedByJwt() throws Exception {
+        reservaA.setData(LocalDate.now());
+        agendamentos.saveAndFlush(reservaA);
         as(vendedorA, get("/vendedor/me")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(vendedorA.getId()))
                 .andExpect(jsonPath("$.estabelecimentoId").value(vendedorA.getEstabelecimento().getId()));
@@ -127,7 +261,32 @@ class SecurityIntegrationTests {
         as(vendedorA, get("/vendedor/me/agendamentos")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(reservaA.getId()));
+        as(vendedorA, get("/vendedor/me/agendamentos")
+                .param("inicio", LocalDate.now().toString()).param("fim", LocalDate.now().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        as(vendedorA, get("/vendedor/me/dashboard")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value(vendedorA.getNome()))
+                .andExpect(jsonPath("$.servicosAtivos").value(1))
+                .andExpect(jsonPath("$.profissionaisAtivos").value(1))
+                .andExpect(jsonPath("$.agendamentosHoje").value(1))
+                .andExpect(jsonPath("$.proximosAgendamentos[0].id").value(reservaA.getId()));
         as(clienteA, get("/vendedor/me")).andExpect(status().isForbidden());
+        as(clienteA, get("/vendedor/me/dashboard")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void tokenReturnedByLoginAuthenticatesDashboard() throws Exception {
+        String loginResponse = mvc.perform(post("/auth/login")
+                        .contentType("application/json")
+                        .content("{\"login\":\"" + vendedorA.getEmail() + "\",\"senha\":\"test-password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+
+        String token = JsonPath.read(loginResponse, "$.token");
+        mvc.perform(get("/vendedor/me/dashboard").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value(vendedorA.getNome()));
     }
 
     @Test
@@ -240,7 +399,7 @@ class SecurityIntegrationTests {
         as(vendedorA, get(gestao)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.jornadas[0].diaSemana").value("MONDAY"));
 
-        String horarios = "/publico/estabelecimentos/" + vendedorA.getEstabelecimento().getId()
+        String horarios = "/publico/e/" + vendedorA.getEstabelecimento().getCodigoPublico()
                 + "/profissionais/" + vendedorA.getProfissionalPrincipal().getId()
                 + "/horarios?servicoId=" + servicoA.getId() + "&data=2027-01-04";
         mvc.perform(get(horarios)).andExpect(status().isOk())
@@ -251,6 +410,56 @@ class SecurityIntegrationTests {
         as(clienteB, post("/agendamento").content(booking(clienteB.getId(), vendedorA, servicoA)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.mensagem").value("Horário indisponível"));
+    }
+
+    @Test
+    void ownerCanReplaceExistingProfessionalAvailabilityMoreThanOnce() throws Exception {
+        String gestao = "/vendedor/" + vendedorA.getId() + "/profissionais/"
+                + vendedorA.getProfissionalPrincipal().getId() + "/disponibilidade";
+
+        as(vendedorA, put(gestao).content("""
+                {"jornadas":[{"diaSemana":"MONDAY","horaInicio":"09:00:00","horaFim":"17:00:00"}]}
+                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jornadas.length()").value(1))
+                .andExpect(jsonPath("$.jornadas[0].horaInicio").value("09:00:00"));
+
+        as(vendedorA, put(gestao).content("""
+                {"jornadas":[{"diaSemana":"MONDAY","horaInicio":"10:00:00","horaFim":"18:00:00"}]}
+                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jornadas.length()").value(1))
+                .andExpect(jsonPath("$.jornadas[0].horaInicio").value("10:00:00"))
+                .andExpect(jsonPath("$.jornadas[0].horaFim").value("18:00:00"));
+    }
+
+    @Test
+    void ownerCanBlockOwnScheduleAndPublicBookingRespectsTheBlock() throws Exception {
+        Long profissionalId = vendedorA.getProfissionalPrincipal().getId();
+        String base = "/vendedor/me/profissionais/" + profissionalId + "/bloqueios";
+        String created = as(vendedorA, post(base).content("""
+                {"tipo":"PAUSA","dataInicio":"2027-01-04","dataFim":"2027-01-04",
+                 "horaInicio":"09:30:00","horaFim":"10:30:00","motivo":"Almoço","recorrente":false}
+                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tipo").value("PAUSA"))
+                .andExpect(jsonPath("$.profissionalId").value(profissionalId))
+                .andReturn().getResponse().getContentAsString();
+        Number bloqueioId = JsonPath.read(created, "$.id");
+
+        as(vendedorA, get(base)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].motivo").value("Almoço"));
+        String horarios = "/publico/e/" + vendedorA.getEstabelecimento().getCodigoPublico()
+                + "/profissionais/" + profissionalId
+                + "/horarios?servicoId=" + servicoA.getId() + "&data=2027-01-04";
+        mvc.perform(get(horarios)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.horariosBloqueados").isArray())
+                .andExpect(jsonPath("$.horariosBloqueados[?(@ == '10:00:00')]").exists());
+        as(clienteA, post("/agendamento").content(booking(clienteA.getId(), vendedorA, servicoA)))
+                .andExpect(status().isConflict());
+
+        as(vendedorB, delete(base + "/" + bloqueioId.longValue())).andExpect(status().isNotFound());
+        as(vendedorA, delete(base + "/" + bloqueioId.longValue())).andExpect(status().isNoContent());
     }
 
     @Test
@@ -300,6 +509,35 @@ class SecurityIntegrationTests {
         as(vendedorA, put(ownBase + "/" + profissionalAlheio.getId()).content("{\"nome\":\"Invasão\"}"))
                 .andExpect(status().isNotFound());
         as(clienteA, get(ownBase)).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void meRoutesDeriveTenantFromTokenAndRejectForeignResourceIds() throws Exception {
+        String servicosMe = "/vendedor/me/servicos";
+        String profissionaisMe = "/vendedor/me/profissionais";
+
+        as(vendedorA, get(servicosMe)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(servicoA.getId()));
+        as(vendedorA, put(servicosMe + "/" + servicoB.getId()).content("""
+                {"nome":"Invasão","descricao":"","preco":10,"tempo":"00:30:00","profissionaisIds":[%d]}
+                """.formatted(vendedorA.getProfissionalPrincipal().getId())))
+                .andExpect(status().isNotFound());
+        as(vendedorA, patch(servicosMe + "/" + servicoB.getId() + "/desativar"))
+                .andExpect(status().isNotFound());
+
+        as(vendedorA, get(profissionaisMe)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(vendedorA.getProfissionalPrincipal().getId()));
+        as(vendedorA, put(profissionaisMe + "/" + vendedorB.getProfissionalPrincipal().getId())
+                .content("{\"nome\":\"Invasão\"}"))
+                .andExpect(status().isNotFound());
+        as(vendedorA, get(profissionaisMe + "/" + vendedorB.getProfissionalPrincipal().getId() + "/disponibilidade"))
+                .andExpect(status().isNotFound());
+
+        assertThat(servicos.findById(servicoB.getId()).orElseThrow().isAtivo()).isTrue();
+        assertThat(profissionais.findById(vendedorB.getProfissionalPrincipal().getId()).orElseThrow().getNome())
+                .doesNotContain("Invasão");
     }
 
     @Test

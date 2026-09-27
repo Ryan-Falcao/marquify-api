@@ -1,1 +1,16 @@
-@import url('../styles.css');
+:root{font-family:Arial,Helvetica,sans-serif;font-synthesis:none;text-rendering:optimizeLegibility}
+html{scroll-behavior:smooth}body{margin:0}button,input,select{font:inherit}
+#login-dialog{position:relative;width:min(420px,calc(100% - 32px));padding:34px;border:0;border-radius:22px;background:#fffdf9;color:#19212a;box-shadow:0 30px 90px #0005}
+#login-dialog::backdrop{background:#19212ad9;backdrop-filter:blur(8px)}
+#login-dialog h3{margin:7px 0 22px;font-size:30px;letter-spacing:-1px}
+#login-dialog form{display:grid;gap:15px;padding:0;background:transparent}
+#login-dialog label{display:grid;gap:7px;color:#38413f;font-size:12px;font-weight:700}
+#login-dialog input{width:100%;box-sizing:border-box;margin:0;padding:13px 14px;border:1px solid #e1d9d0;border-radius:10px;background:#fff;color:#19212a;outline:none}
+#login-dialog input:focus{border-color:#e5674d;box-shadow:0 0 0 3px #e5674d20}
+#login-dialog .button{width:100%;border:0;background:#e5674d;color:#fff;cursor:pointer;box-shadow:0 9px 20px #e5674d33}
+#login-dialog .error{color:#a23e2c;font-size:12px}
+#close-login{position:absolute;top:15px;right:17px;border:0;background:none;color:#747873;font-size:28px;cursor:pointer}
+.v0-register-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:#19212ad9;backdrop-filter:blur(8px)}
+.v0-register-card{position:relative;display:grid;gap:14px;width:min(480px,100%);max-height:calc(100vh - 40px);overflow:auto;padding:34px;border-radius:24px;background:#fffdf9;box-shadow:0 30px 90px #0005}
+.v0-register-card h2{margin:2px 0 0;font-size:36px}.v0-register-card>p{margin:0 0 8px;color:#747873;line-height:1.55}.v0-register-card label{display:grid;gap:7px;color:#38413f;font-size:12px;font-weight:700}.v0-register-card input{width:100%;padding:13px 14px;border:1px solid #e1d9d0;border-radius:10px;background:#fff;color:#19212a;font:inherit;outline:none}.v0-register-card input:focus{border-color:#e5674d;box-shadow:0 0 0 3px #e5674d20}.v0-register-card .button{border:0;cursor:pointer}.v0-register-close{position:absolute;top:15px;right:17px;border:0;background:none;color:#747873;font-size:28px;cursor:pointer}.v0-register-card>small{text-align:center;color:#747873}.v0-register-card .register-error{color:#a23e2c}.v0-login-switch{border:0;background:none;color:#19212a;font-weight:700;text-decoration:underline;cursor:pointer}
+@media(max-width:600px){.v0-register-card{padding:28px 20px}.v0-register-card h2{font-size:30px}}

@@ -45,6 +45,29 @@ public class ProfissionalService {
         return ProfissionalResponse.from(profissionais.save(profissional));
     }
 
+    public ProfissionalResponse criarAtual(ProfissionalRequest request) {
+        Vendedor vendedor = vendedorAtual();
+        return ProfissionalResponse.from(profissionais.save(new Profissional(vendedor.getEstabelecimento(), request.nome())));
+    }
+
+    public ProfissionalResponse atualizarAtual(Long profissionalId, ProfissionalRequest request) {
+        Profissional profissional = profissionalDoEstabelecimentoAtual(profissionalId);
+        profissional.alterarNome(request.nome());
+        return ProfissionalResponse.from(profissionais.save(profissional));
+    }
+
+    public ProfissionalResponse ativarAtual(Long profissionalId) {
+        Profissional profissional = profissionalDoEstabelecimentoAtual(profissionalId);
+        profissional.ativar();
+        return ProfissionalResponse.from(profissionais.save(profissional));
+    }
+
+    public ProfissionalResponse desativarAtual(Long profissionalId) {
+        Profissional profissional = profissionalDoEstabelecimentoAtual(profissionalId);
+        profissional.desativar();
+        return ProfissionalResponse.from(profissionais.save(profissional));
+    }
+
     public ProfissionalResponse atualizar(Long vendedorId, Long profissionalId, ProfissionalRequest request) {
         Profissional profissional = profissionalDoEstabelecimento(vendedorId, profissionalId);
         profissional.alterarNome(request.nome());
@@ -72,6 +95,17 @@ public class ProfissionalService {
     private Vendedor vendedorDoUsuario(Long vendedorId) {
         currentUser.vendedor(vendedorId);
         return vendedores.findById(vendedorId).orElseThrow(this::notFound);
+    }
+
+    private Vendedor vendedorAtual() {
+        Vendedor atual = currentUser.vendedor();
+        return vendedores.findById(atual.getId()).orElseThrow(this::notFound);
+    }
+
+    private Profissional profissionalDoEstabelecimentoAtual(Long profissionalId) {
+        Vendedor vendedor = vendedorAtual();
+        return profissionais.findByIdAndEstabelecimentoId(profissionalId, vendedor.getEstabelecimento().getId())
+                .orElseThrow(this::notFound);
     }
 
     private ResponseStatusException notFound() {

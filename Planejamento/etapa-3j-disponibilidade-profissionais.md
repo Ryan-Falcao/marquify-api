@@ -19,6 +19,11 @@ O retorno inclui `horarios`, com itens como `08:00:00`, `08:15:00` e `08:30:00`.
 
 - `./mvnw.cmd -o -B verify`: 35 testes aprovados.
 
-## Próximo recorte
+## Recorte concluído — bloqueios de agenda
 
-Bloqueios pontuais de agenda, como férias, almoço e indisponibilidades específicas por data.
+- Férias e ausências podem bloquear um dia ou intervalo completo de datas.
+- Almoço e pausas podem ser recorrentes em todos os dias de trabalho, com data final opcional.
+- Pausas pontuais bloqueiam um intervalo de horas somente na data escolhida.
+- A gestão lista, cria e remove bloqueios por profissional usando rotas derivadas do JWT.
+- O cálculo público mantém os horários da jornada visíveis, diferenciando reservas de bloqueios administrativos.
+- A criação do agendamento repete a validação e rejeita qualquer intervalo que sobreponha um bloqueio.

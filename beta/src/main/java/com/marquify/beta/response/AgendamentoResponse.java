@@ -8,7 +8,7 @@ import java.time.LocalTime;
 public record AgendamentoResponse(Long id, LocalDate data, LocalTime horaInicio, LocalTime horaFim,
                                   Status status, ClienteResumo cliente, VendedorResumo vendedor,
                                   EstabelecimentoResumo estabelecimento, ProfissionalResumo profissional,
-                                  ServicoResponse servico) {
+                                  ServicoResponse servico, java.math.BigDecimal valorCobrado, long duracaoMinutos) {
     public record ClienteResumo(Long id, String nome) {}
     public record VendedorResumo(Long id, String nomeLoja) {}
     public record EstabelecimentoResumo(Long id, String nome, String fusoHorario) {}
@@ -26,6 +26,7 @@ public record AgendamentoResponse(Long id, LocalDate data, LocalTime horaInicio,
                 estabelecimento == null ? null : new EstabelecimentoResumo(estabelecimento.getId(), estabelecimento.getNome(),
                         estabelecimento.getFusoHorario()),
                 profissional == null ? null : new ProfissionalResumo(profissional.getId(), profissional.getNome()),
-                agendamento.getServico() == null ? null : ServicoResponse.from(agendamento.getServico()));
+                agendamento.getServico() == null ? null : ServicoResponse.from(agendamento.getServico()),
+                agendamento.getValorCobrado(), java.time.Duration.between(agendamento.getHoraInicio(), agendamento.getHoraFim()).toMinutes());
     }
 }

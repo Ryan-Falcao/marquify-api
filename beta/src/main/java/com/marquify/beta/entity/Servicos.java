@@ -37,6 +37,15 @@ public class Servicos {
     @Column(nullable = false)
     private boolean ativo = true;
 
+    @Column(name = "foto_arquivo", length = 120)
+    private String fotoArquivo;
+
+    @Column(name = "foto_posicao_x", nullable = false)
+    private int fotoPosicaoX = 50;
+
+    @Column(name = "foto_posicao_y", nullable = false)
+    private int fotoPosicaoY = 50;
+
     /**
      * Referência temporária para compatibilidade com as rotas legadas baseadas no vendedor.
      * O estabelecimento é o dono canônico do catálogo.

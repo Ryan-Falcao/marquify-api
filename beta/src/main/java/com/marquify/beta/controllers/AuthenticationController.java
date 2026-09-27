@@ -9,6 +9,9 @@ import com.marquify.beta.request.RegisterRequest;
 import com.marquify.beta.request.CadastroComercialRequest;
 import com.marquify.beta.response.CadastroComercialResponse;
 import com.marquify.beta.service.CadastroComercialService;
+import com.marquify.beta.service.CadastroClienteService;
+import com.marquify.beta.request.CadastroClienteRapidoRequest;
+import com.marquify.beta.response.CadastroClienteRapidoResponse;
 import com.marquify.beta.response.LoginResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -30,6 +33,8 @@ public class AuthenticationController {
 
     @Autowired
     private CadastroComercialService cadastroComercialService;
+    @Autowired
+    private CadastroClienteService cadastroClienteService;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -67,5 +72,10 @@ public class AuthenticationController {
     @PostMapping("/cadastro-comercial")
     public ResponseEntity<CadastroComercialResponse> cadastroComercial(@RequestBody @Valid CadastroComercialRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(cadastroComercialService.cadastrar(request));
+    }
+
+    @PostMapping("/cadastro-cliente")
+    public ResponseEntity<CadastroClienteRapidoResponse> cadastroCliente(@RequestBody @Valid CadastroClienteRapidoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(cadastroClienteService.cadastrar(request));
     }
 }

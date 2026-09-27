@@ -1,0 +1,2 @@
+ALTER TABLE bloqueios_agenda ALTER COLUMN data_fim DROP NOT NULL;
+ALTER TABLE bloqueios_agenda ADD COLUMN recorrente BOOLEAN NOT NULL DEFAULT FALSE;

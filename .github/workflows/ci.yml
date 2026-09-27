@@ -1,0 +1,90 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend-h2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: beta
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: bash mvnw -B verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-h2-reports
+          path: beta/target/surefire-reports/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: beta/target/*.jar
+  backend-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: marquify_test
+          POSTGRES_PASSWORD: ci-disposable-password
+          POSTGRES_DB: marquify_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U marquify_test -d marquify_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DB_URL: jdbc:postgresql://localhost:5432/marquify_test
+      TEST_DB_USERNAME: marquify_test
+      TEST_DB_PASSWORD: ci-disposable-password
+      TEST_FLYWAY_LOCATIONS: classpath:db/migration/postgresql
+      TEST_FLYWAY_SUFFIXES: .pgsql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: bash mvnw -B verify
+        working-directory: beta
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-postgres-reports
+          path: beta/target/surefire-reports/
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: marquify-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: marquify-web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          VITE_API_URL: /api
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: marquify-web/dist/

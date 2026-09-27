@@ -1,0 +1,2 @@
+ALTER TABLE servicos ADD COLUMN foto_posicao_x INT NOT NULL DEFAULT 50;
+ALTER TABLE servicos ADD COLUMN foto_posicao_y INT NOT NULL DEFAULT 50;

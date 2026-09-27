@@ -1,10 +1,15 @@
 # Chave pública e descartável usada SOMENTE nos testes.
 spring:
+  flyway:
+    locations: ${TEST_FLYWAY_LOCATIONS:classpath:db/migration}
+    sql-migration-suffixes: ${TEST_FLYWAY_SUFFIXES:.sql}
   datasource:
     url: ${TEST_DB_URL:jdbc:h2:mem:marquify;MODE=MySQL;DB_CLOSE_DELAY=-1}
     username: ${TEST_DB_USERNAME:sa}
     password: ${TEST_DB_PASSWORD:}
 api:
+  login-rate-limit:
+    max-attempts: 10000
   security:
     token:
       secret: marquify-test-only-key-never-use-in-production

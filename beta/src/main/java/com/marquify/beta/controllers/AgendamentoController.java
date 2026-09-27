@@ -22,4 +22,15 @@ public class AgendamentoController {
     public ResponseEntity<AgendamentoResponse> cancelar(@RequestBody AgendamentoRequest request){
         return ResponseEntity.ok(agendamentoservice.cancelar(request));
     }
+
+    @PutMapping("/{id}/remarcar")
+    public ResponseEntity<AgendamentoResponse> remarcar(@PathVariable Long id, @RequestBody AgendamentoRequest request) {
+        return ResponseEntity.ok(agendamentoservice.remarcar(id, request.getData(), request.getHoraInicio()));
+    }
+
+    @GetMapping("/{id}/horarios-remarcacao")
+    public ResponseEntity<java.util.List<java.time.LocalTime>> horarios(@PathVariable Long id,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate data) {
+        return ResponseEntity.ok(agendamentoservice.horariosRemarcacao(id, data));
+    }
 }

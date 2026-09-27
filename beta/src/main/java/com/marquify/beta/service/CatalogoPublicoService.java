@@ -27,6 +27,10 @@ public class CatalogoPublicoService {
         return EstabelecimentoPublicoResponse.from(estabelecimentoAtivo(estabelecimentoId));
     }
 
+    public EstabelecimentoPublicoResponse estabelecimento(String codigoPublico) {
+        return EstabelecimentoPublicoResponse.from(estabelecimentoAtivo(codigoPublico));
+    }
+
     public List<ServicoResponse> servicos(Long estabelecimentoId) {
         estabelecimentoAtivo(estabelecimentoId);
         return servicos.findAllByEstabelecimentoIdOrderByNomeAsc(estabelecimentoId).stream()
@@ -42,8 +46,25 @@ public class CatalogoPublicoService {
                 .toList();
     }
 
+    public List<ServicoResponse> servicos(String codigoPublico) {
+        return servicos(estabelecimentoAtivo(codigoPublico).getId());
+    }
+
+    public List<ProfissionalPublicoResponse> profissionais(String codigoPublico) {
+        return profissionais(estabelecimentoAtivo(codigoPublico).getId());
+    }
+
+    public Long idDoEstabelecimento(String codigoPublico) {
+        return estabelecimentoAtivo(codigoPublico).getId();
+    }
+
     private Estabelecimento estabelecimentoAtivo(Long estabelecimentoId) {
         return estabelecimentos.findByIdAndAtivoTrue(estabelecimentoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Recurso não encontrado"));
+    }
+
+    private Estabelecimento estabelecimentoAtivo(String codigoPublico) {
+        return estabelecimentos.findByCodigoPublicoAndAtivoTrue(codigoPublico)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Recurso não encontrado"));
     }
 }
