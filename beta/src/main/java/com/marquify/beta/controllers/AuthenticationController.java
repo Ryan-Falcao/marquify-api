@@ -16,37 +16,49 @@ import com.marquify.beta.response.LoginResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Locale;
+
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {
 
-    @Autowired
-    private CadastroComercialService cadastroComercialService;
-    @Autowired
-    private CadastroClienteService cadastroClienteService;
+    private final CadastroComercialService cadastroComercialService;
+    private final CadastroClienteService cadastroClienteService;
+    private final AuthenticationManager authenticationManager;
+    private final vendedorRepository vendedorRepository;
+    private final clienteRepository clienteRepository;
+    private final TokenService tokenService;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
-    @Autowired
-    private vendedorRepository vendedorRepository;
-    @Autowired
-    private clienteRepository clienteRepository;
-    @Autowired
-    private TokenService tokenService;
+    public AuthenticationController(
+            CadastroComercialService cadastroComercialService,
+            CadastroClienteService cadastroClienteService,
+            AuthenticationManager authenticationManager,
+            vendedorRepository vendedorRepository,
+            clienteRepository clienteRepository,
+            TokenService tokenService,
+            PasswordEncoder passwordEncoder) {
+        this.cadastroComercialService = cadastroComercialService;
+        this.cadastroClienteService = cadastroClienteService;
+        this.authenticationManager = authenticationManager;
+        this.vendedorRepository = vendedorRepository;
+        this.clienteRepository = clienteRepository;
+        this.tokenService = tokenService;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @PostMapping("/login")
-    public ResponseEntity login(@RequestBody @Valid AuthenticationRequest request){
+    public ResponseEntity<LoginResponse> login(@RequestBody @Valid AuthenticationRequest request) {
         var usernameSenha = new UsernamePasswordAuthenticationToken(request.getLogin(), request.getSenha());
         var auth = authenticationManager.authenticate(usernameSenha);
 
@@ -56,13 +68,13 @@ public class AuthenticationController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity register(@RequestBody @Valid RegisterRequest request){
-        String email = request.getLogin().trim().toLowerCase(java.util.Locale.ROOT);
+    public ResponseEntity<Void> register(@RequestBody @Valid RegisterRequest request) {
+        String email = request.getLogin().trim().toLowerCase(Locale.ROOT);
         if (this.clienteRepository.existsByEmailIgnoreCase(email) || this.vendedorRepository.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Login indisponível");
         }
 
-        String encryptedSenha = new BCryptPasswordEncoder().encode(request.getSenha());
+        String encryptedSenha = passwordEncoder.encode(request.getSenha());
         Cliente newUser = new Cliente(email, encryptedSenha);
 
         this.clienteRepository.save(newUser);
