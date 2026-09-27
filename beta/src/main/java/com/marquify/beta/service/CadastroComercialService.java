@@ -37,8 +37,8 @@ public class CadastroComercialService {
     private final TokenService tokens;
 
     public CadastroComercialResponse cadastrar(CadastroComercialRequest request) {
-        String email = request.email().trim().toLowerCase();
-        if (clientes.existsByEmail(email) || vendedores.existsByEmail(email)) {
+        String email = request.email().trim().toLowerCase(java.util.Locale.ROOT);
+        if (clientes.existsByEmailIgnoreCase(email) || vendedores.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já está em uso");
         }
         Estabelecimento estabelecimento = estabelecimentos.save(new Estabelecimento(request.estabelecimento(), request.fusoHorario()));

@@ -57,7 +57,7 @@ export const dashboardIndicators = (filters: DashboardFilters = {}) =>
 
 export const bookingLink = () => request<{ codigoPublico: string; urlAgendamento: string }>('/vendedor/me/link-agendamento');
 export const catalogAppearance = () => request<PublicBusiness>('/vendedor/me/personalizacao');
-export const saveCatalogAppearance = (appearance: CatalogAppearance) => request<PublicBusiness>('/vendedor/me/personalizacao', { method: 'PUT', body: JSON.stringify({ nome: appearance.businessName, descricao: appearance.description, corPrimaria: appearance.primaryColor, logo: appearance.logoImage || null, capa: appearance.coverImage || null, capaPosicaoX: appearance.coverPositionX, capaPosicaoY: appearance.coverPositionY, tema: JSON.stringify({ backgroundColor: appearance.backgroundColor, surfaceColor: appearance.surfaceColor, textColor: appearance.textColor, heroTextColor: appearance.heroTextColor, overlayOpacity: appearance.overlayOpacity, fontStyle: appearance.fontStyle, cornerStyle: appearance.cornerStyle, heroAlignment: appearance.heroAlignment, heroSize: appearance.heroSize, serviceLayout: appearance.serviceLayout, showServiceImages: appearance.showServiceImages, showServiceDescriptions: appearance.showServiceDescriptions, showServiceDuration: appearance.showServiceDuration, heroEyebrow: appearance.heroEyebrow, catalogTitle: appearance.catalogTitle }) }) });
+export const saveCatalogAppearance = (appearance: CatalogAppearance) => request<PublicBusiness>('/vendedor/me/personalizacao', { method: 'PUT', body: JSON.stringify({ nome: appearance.businessName, descricao: appearance.description, corPrimaria: appearance.primaryColor, logo: appearance.logoImage || null, capa: appearance.coverImage || null, capaPosicaoX: appearance.coverPositionX, capaPosicaoY: appearance.coverPositionY, tema: JSON.stringify({ backgroundColor: appearance.backgroundColor, surfaceColor: appearance.surfaceColor, textColor: appearance.textColor, heroTextColor: appearance.heroTextColor, heroEyebrowColor: appearance.heroEyebrowColor, businessNameColor: appearance.businessNameColor, descriptionColor: appearance.descriptionColor, catalogTitleColor: appearance.catalogTitleColor, serviceNameColor: appearance.serviceNameColor, serviceDescriptionColor: appearance.serviceDescriptionColor, serviceDurationColor: appearance.serviceDurationColor, servicePriceColor: appearance.servicePriceColor, overlayOpacity: appearance.overlayOpacity, fontStyle: appearance.fontStyle, cornerStyle: appearance.cornerStyle, heroAlignment: appearance.heroAlignment, heroSize: appearance.heroSize, serviceLayout: appearance.serviceLayout, showServiceImages: appearance.showServiceImages, showServiceDescriptions: appearance.showServiceDescriptions, showServiceDuration: appearance.showServiceDuration, heroEyebrow: appearance.heroEyebrow, catalogTitle: appearance.catalogTitle }) }) });
 export const publicBusiness = (code: string) => request<PublicBusiness>(`/publico/e/${code}`, { cache: 'no-store' }, false);
 export const publicServices = (code: string) => request<Service[]>(`/publico/e/${code}/servicos`, {}, false);
 export const publicProfessionals = (code: string) => request<PublicProfessional[]>(`/publico/e/${code}/profissionais`, {}, false);
@@ -101,8 +101,12 @@ export function hasSession() {
   const currentToken = token();
   if (!currentToken) return false;
   try {
-    const payload = JSON.parse(atob(currentToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
-    if (payload.exp && payload.exp * 1000 <= Date.now()) {
+    const parts = currentToken.split('.');
+    if (parts.length !== 3) throw new Error('Token inválido');
+    const encodedPayload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = encodedPayload.padEnd(encodedPayload.length + (4 - encodedPayload.length % 4) % 4, '=');
+    const payload = JSON.parse(atob(paddedPayload)) as { exp?: number };
+    if (typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now()) {
       logout();
       return false;
     }

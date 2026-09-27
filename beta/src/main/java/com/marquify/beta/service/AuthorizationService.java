@@ -16,8 +16,10 @@ public class AuthorizationService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) {
-        var matchingVendedores = vendedores.findAllByEmail(username);
-        var matchingClientes = clientes.findAllByEmail(username);
+        if (username == null) throw unknown();
+        String email = username.trim().toLowerCase(java.util.Locale.ROOT);
+        var matchingVendedores = vendedores.findAllByEmailIgnoreCase(email);
+        var matchingClientes = clientes.findAllByEmailIgnoreCase(email);
         // Não escolher uma identidade arbitrária se houver dados legados duplicados.
         if (matchingVendedores.size() + matchingClientes.size() != 1) throw unknown();
         return matchingVendedores.isEmpty() ? matchingClientes.getFirst() : matchingVendedores.getFirst();

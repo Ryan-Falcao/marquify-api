@@ -57,12 +57,13 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody @Valid RegisterRequest request){
-        if (this.clienteRepository.existsByEmail(request.getLogin()) || this.vendedorRepository.existsByEmail(request.getLogin())) {
+        String email = request.getLogin().trim().toLowerCase(java.util.Locale.ROOT);
+        if (this.clienteRepository.existsByEmailIgnoreCase(email) || this.vendedorRepository.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Login indisponível");
         }
 
         String encryptedSenha = new BCryptPasswordEncoder().encode(request.getSenha());
-        Cliente newUser = new Cliente(request.getLogin(), encryptedSenha);
+        Cliente newUser = new Cliente(email, encryptedSenha);
 
         this.clienteRepository.save(newUser);
 

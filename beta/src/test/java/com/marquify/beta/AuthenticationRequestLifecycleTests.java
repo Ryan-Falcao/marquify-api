@@ -20,15 +20,25 @@ class AuthenticationRequestLifecycleTests {
     // Each HTTP request must run without a shared test transaction/persistence context.
     @Test
     void loginThenPersonalizationAcrossSeparateRequests() throws Exception {
-        String email = UUID.randomUUID() + "@example.test";
+        String email = "Conta." + UUID.randomUUID() + "@Example.test";
         mvc.perform(post("/auth/cadastro-comercial").contentType("application/json").content("""
                 {"nome":"Teste","estabelecimento":"Loja teste","email":"%s",
                  "senha":"test-password","fusoHorario":"America/Sao_Paulo"}
                 """.formatted(email))).andExpect(status().isCreated());
         String response = mvc.perform(post("/auth/login").contentType("application/json")
-                .content("{\"login\":\"" + email + "\",\"senha\":\"test-password\"}"))
+                .content("{\"login\":\" " + email + " \",\"senha\":\"test-password\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String token = JsonPath.read(response, "$.token");
+        mvc.perform(post("/auth/login").contentType("application/json")
+                .content("{\"login\":\"" + email.toLowerCase(java.util.Locale.ROOT) + "\",\"senha\":\"test-password\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/auth/login").contentType("application/json")
+                .content("{\"login\":\"" + email + "\",\"senha\":\"TEST-PASSWORD\"}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/auth/cadastro-comercial").contentType("application/json").content("""
+                {"nome":"Duplicado","estabelecimento":"Outra loja","email":"%s",
+                 "senha":"test-password","fusoHorario":"America/Sao_Paulo"}
+                """.formatted(email.toUpperCase(java.util.Locale.ROOT)))).andExpect(status().isConflict());
         mvc.perform(get("/vendedor/me/dashboard").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
         mvc.perform(get("/vendedor/me/personalizacao").header("Authorization", "Bearer " + token))

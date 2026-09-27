@@ -23,8 +23,8 @@ public class CadastroClienteService {
     private final TokenService tokens;
 
     public CadastroClienteRapidoResponse cadastrar(CadastroClienteRapidoRequest request) {
-        String email = request.email().trim().toLowerCase();
-        if (clientes.existsByEmail(email) || vendedores.existsByEmail(email)) {
+        String email = request.email().trim().toLowerCase(java.util.Locale.ROOT);
+        if (clientes.existsByEmailIgnoreCase(email) || vendedores.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este e-mail já possui cadastro. Entre na sua conta para continuar.");
         }

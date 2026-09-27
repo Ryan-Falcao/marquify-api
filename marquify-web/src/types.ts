@@ -17,6 +17,14 @@ export interface CatalogAppearance {
   surfaceColor: string;
   textColor: string;
   heroTextColor: string;
+  heroEyebrowColor: string;
+  businessNameColor: string;
+  descriptionColor: string;
+  catalogTitleColor: string;
+  serviceNameColor: string;
+  serviceDescriptionColor: string;
+  serviceDurationColor: string;
+  servicePriceColor: string;
   overlayOpacity: number;
   fontStyle: 'moderna' | 'elegante' | 'classica';
   cornerStyle: 'reto' | 'suave' | 'arredondado';
