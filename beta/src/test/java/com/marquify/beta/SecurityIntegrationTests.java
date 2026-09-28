@@ -183,6 +183,7 @@ class SecurityIntegrationTests {
     @Test
     void publicBookingLinkUsesOpaqueCodeInsteadOfInternalEstablishmentId() throws Exception {
         String codigo = vendedorA.getEstabelecimento().getCodigoPublico();
+        String slug = vendedorA.getEstabelecimento().getSlugPublico();
 
         assertThat(codigo).isNotBlank().isNotEqualTo(vendedorA.getEstabelecimento().getId().toString());
         mvc.perform(get("/publico/e/" + codigo)).andExpect(status().isOk())
@@ -191,7 +192,8 @@ class SecurityIntegrationTests {
                 .andExpect(jsonPath("$[0].id").value(servicoA.getId()));
         as(vendedorA, get("/vendedor/me/link-agendamento")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigoPublico").value(codigo))
-                .andExpect(jsonPath("$.urlAgendamento").value("http://localhost:5173/agendar/" + codigo));
+                .andExpect(jsonPath("$.slugPublico").value(slug))
+                .andExpect(jsonPath("$.urlAgendamento").value("http://localhost:5173/agendar/" + slug));
     }
 
     @Test

@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.Instant;
 import java.math.BigDecimal;
 
 @Entity
@@ -53,6 +54,14 @@ public class Agendamento {
     @ManyToOne
     @JoinColumn(name = "servico_id")
     private Servicos servico;
+
+    @Column(name = "criado_em", nullable = false, updatable = false)
+    private Instant criadoEm;
+
+    @PrePersist
+    private void registrarCriacao() {
+        if (criadoEm == null) criadoEm = Instant.now();
+    }
 
     public void vincularProfissional(Profissional profissional) {
         if (profissional == null) {

@@ -30,6 +30,7 @@ public class VendedorService {
     private final servicoRepository servicos;
     private final ProfissionalRepository profissionais;
     private final CurrentUser currentUser;
+    private final AssinaturaService assinaturas;
 
     @Value("${api.public-web-url:http://localhost:5173}")
     private String publicWebUrl;
@@ -56,9 +57,10 @@ public class VendedorService {
 
     @Transactional(readOnly = true)
     public LinkAgendamentoResponse linkAgendamento() {
-        String codigoPublico = vendedorAtual().getEstabelecimento().getCodigoPublico();
+        var estabelecimento = vendedorAtual().getEstabelecimento();
+        String codigoPublico = estabelecimento.getCodigoPublico();
         String base = publicWebUrl.replaceAll("/+$", "");
-        return new LinkAgendamentoResponse(codigoPublico, base + "/agendar/" + codigoPublico);
+        return new LinkAgendamentoResponse(codigoPublico, estabelecimento.getSlugPublico(), base + "/agendar/" + estabelecimento.getSlugPublico());
     }
 
     @Transactional(readOnly = true)
@@ -146,6 +148,7 @@ public class VendedorService {
 
     public ServicoResponse criarServico(ServicoRequest request) {
         Vendedor vendedor = ownVendedor(request.getVendedorId());
+        assinaturas.validarNovoServico(vendedor.getEstabelecimento().getId());
         Set<Profissional> profissionaisDoServico = profissionaisDoEstabelecimento(request.getProfissionaisIds(), vendedor);
         Servicos servico = new Servicos();
         servico.setNome(request.getNome());
@@ -184,6 +187,7 @@ public class VendedorService {
 
     public ServicoResponse criarServicoNoEstabelecimento(Long estabelecimentoId, ServicoCatalogoRequest request) {
         Vendedor vendedor = vendedorDoEstabelecimento(estabelecimentoId);
+        assinaturas.validarNovoServico(vendedor.getEstabelecimento().getId());
         Servicos servico = new Servicos();
         preencherServico(servico, request, vendedor);
         return ServicoResponse.from(servicos.save(servico));
@@ -191,6 +195,7 @@ public class VendedorService {
 
     public ServicoResponse criarServicoAtual(ServicoCatalogoRequest request) {
         Vendedor vendedor = vendedorAtual();
+        assinaturas.validarNovoServico(vendedor.getEstabelecimento().getId());
         Servicos servico = new Servicos();
         preencherServico(servico, request, vendedor);
         return ServicoResponse.from(servicos.save(servico));
@@ -211,9 +216,21 @@ public class VendedorService {
     }
 
     public ServicoResponse desativarServicoAtual(Long servicoId) {
+        return arquivarServicoAtual(servicoId);
+    }
+
+    public ServicoResponse arquivarServicoAtual(Long servicoId) {
         Vendedor vendedor = vendedorAtual();
         Servicos servico = servicoDoEstabelecimento(servicoId, vendedor.getEstabelecimento().getId());
-        servico.desativar();
+        servico.arquivar();
+        return ServicoResponse.from(servicos.save(servico));
+    }
+
+    public ServicoResponse restaurarServicoAtual(Long servicoId) {
+        Vendedor vendedor = vendedorAtual();
+        Servicos servico = servicoDoEstabelecimento(servicoId, vendedor.getEstabelecimento().getId());
+        if (!servico.isAtivo()) assinaturas.validarNovoServico(vendedor.getEstabelecimento().getId());
+        servico.restaurar();
         return ServicoResponse.from(servicos.save(servico));
     }
 
@@ -232,9 +249,21 @@ public class VendedorService {
     }
 
     public ServicoResponse desativarServico(Long estabelecimentoId, Long servicoId) {
+        return arquivarServico(estabelecimentoId, servicoId);
+    }
+
+    public ServicoResponse arquivarServico(Long estabelecimentoId, Long servicoId) {
         vendedorDoEstabelecimento(estabelecimentoId);
         Servicos servico = servicoDoEstabelecimento(servicoId, estabelecimentoId);
-        servico.desativar();
+        servico.arquivar();
+        return ServicoResponse.from(servicos.save(servico));
+    }
+
+    public ServicoResponse restaurarServico(Long estabelecimentoId, Long servicoId) {
+        vendedorDoEstabelecimento(estabelecimentoId);
+        Servicos servico = servicoDoEstabelecimento(servicoId, estabelecimentoId);
+        if (!servico.isAtivo()) assinaturas.validarNovoServico(estabelecimentoId);
+        servico.restaurar();
         return ServicoResponse.from(servicos.save(servico));
     }
 

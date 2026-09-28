@@ -55,6 +55,14 @@ public class BloqueioAgendaService {
         bloqueios.delete(bloqueio);
     }
 
+    @Transactional(readOnly = true)
+    public List<BloqueioAgendaResponse> listarDoProfissional(LocalDate inicio, LocalDate fim) { return listarPara(currentUser.profissional(), inicio, fim); }
+    public BloqueioAgendaResponse criarDoProfissional(BloqueioAgendaRequest request) { return criarPara(currentUser.profissional(), request); }
+    public void excluirDoProfissional(Long bloqueioId) { Profissional profissional=currentUser.profissional(); BloqueioAgenda bloqueio=bloqueios.findByIdAndProfissionalId(bloqueioId, profissional.getId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Recurso não encontrado")); bloqueios.delete(bloqueio); }
+
+    private List<BloqueioAgendaResponse> listarPara(Profissional profissional, LocalDate inicio, LocalDate fim) { LocalDate de=inicio==null?LocalDate.now():inicio; LocalDate ate=fim==null?de.plusYears(1):fim; if(ate.isBefore(de)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Período inválido"); return bloqueios.buscarNoPeriodo(profissional.getId(),de,ate).stream().map(BloqueioAgendaResponse::from).toList(); }
+    private BloqueioAgendaResponse criarPara(Profissional profissional, BloqueioAgendaRequest request) { if(request.dataFim()!=null&&request.dataFim().isBefore(request.dataInicio())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"A data final deve ser igual ou posterior à inicial"); try{return BloqueioAgendaResponse.from(bloqueios.save(new BloqueioAgenda(profissional,request.tipo(),request.dataInicio(),request.dataFim(),request.horaInicio(),request.horaFim(),request.motivo(),request.recorrente())));}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,e.getMessage());} }
+
     private Profissional profissionalAtual(Long profissionalId) {
         var vendedor = currentUser.vendedor();
         return profissionais.findByIdAndEstabelecimentoId(profissionalId, vendedor.getEstabelecimento().getId())

@@ -1,7 +1,13 @@
-import type { Appointment, Availability, BusinessProfile, CatalogAppearance, CustomerProfile, CustomerRegistrationPayload, DashboardData, LoginPayload, Professional, PublicBusiness, PublicProfessional, RegisterBusinessPayload, ScheduleBlock, Service } from '../types';
+import type { Appointment, Availability, BusinessProfile, CatalogAppearance, CustomerProfile, CustomerRegistrationPayload, DashboardData, LoginPayload, Professional, PublicBusiness, PublicProfessional, RegisterBusinessPayload, ScheduleBlock, Service, SubscriptionDetails } from '../types';
 
 const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/$/, '');
 import type { DashboardFilters, DashboardAppointmentPage, DashboardIndicators } from '../types';
+
+export interface BusinessSettings {
+  nome: string; slugPublico: string; descricao: string | null; telefone: string | null; endereco: string | null; fusoHorario: string;
+  antecedenciaMinimaMinutos: number; janelaMaximaAgendamentoDias: number;
+  intervaloEntreServicosMinutos: number; antecedenciaCancelamentoMinutos: number;
+}
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -55,7 +61,12 @@ export const dashboardAppointments = (filters: DashboardFilters = {}) =>
 export const dashboardIndicators = (filters: DashboardFilters = {}) =>
   request<DashboardIndicators>(`/vendedor/me/dashboard/indicadores?${dashboardQuery(filters)}`);
 
-export const bookingLink = () => request<{ codigoPublico: string; urlAgendamento: string }>('/vendedor/me/link-agendamento');
+export const bookingLink = () => request<{ codigoPublico: string; slugPublico: string; urlAgendamento: string }>('/vendedor/me/link-agendamento');
+export const subscriptionDetails = () => request<SubscriptionDetails>('/vendedor/me/assinatura');
+export const startSubscriptionCheckout = () => request<{ url: string }>('/vendedor/me/assinatura/checkout', { method: 'POST' });
+export const businessSettings = () => request<BusinessSettings>('/vendedor/me/configuracoes');
+export const slugAvailability = (slug: string) => request<{ disponivel: boolean; mensagem: string }>(`/vendedor/me/configuracoes/slug-disponivel?slug=${encodeURIComponent(slug)}`);
+export const saveBusinessSettings = (settings: BusinessSettings) => request<BusinessSettings>('/vendedor/me/configuracoes', { method: 'PUT', body: JSON.stringify(settings) });
 export const catalogAppearance = () => request<PublicBusiness>('/vendedor/me/personalizacao');
 export const saveCatalogAppearance = (appearance: CatalogAppearance) => request<PublicBusiness>('/vendedor/me/personalizacao', { method: 'PUT', body: JSON.stringify({ nome: appearance.businessName, descricao: appearance.description, corPrimaria: appearance.primaryColor, logo: appearance.logoImage || null, capa: appearance.coverImage || null, capaPosicaoX: appearance.coverPositionX, capaPosicaoY: appearance.coverPositionY, tema: JSON.stringify({ backgroundColor: appearance.backgroundColor, surfaceColor: appearance.surfaceColor, textColor: appearance.textColor, heroTextColor: appearance.heroTextColor, heroEyebrowColor: appearance.heroEyebrowColor, businessNameColor: appearance.businessNameColor, descriptionColor: appearance.descriptionColor, catalogTitleColor: appearance.catalogTitleColor, serviceNameColor: appearance.serviceNameColor, serviceDescriptionColor: appearance.serviceDescriptionColor, serviceDurationColor: appearance.serviceDurationColor, servicePriceColor: appearance.servicePriceColor, overlayOpacity: appearance.overlayOpacity, fontStyle: appearance.fontStyle, cornerStyle: appearance.cornerStyle, heroAlignment: appearance.heroAlignment, heroSize: appearance.heroSize, serviceLayout: appearance.serviceLayout, showServiceImages: appearance.showServiceImages, showServiceDescriptions: appearance.showServiceDescriptions, showServiceDuration: appearance.showServiceDuration, heroEyebrow: appearance.heroEyebrow, catalogTitle: appearance.catalogTitle }) }) });
 export const publicBusiness = (code: string) => request<PublicBusiness>(`/publico/e/${code}`, { cache: 'no-store' }, false);
@@ -87,15 +98,22 @@ export async function uploadServicePhoto(serviceId: number, photo: File) {
 export const updateServicePhotoPosition = (serviceId: number, x: number, y: number) =>
   request<Service>(`/vendedor/me/servicos/${serviceId}/foto-posicao`, { method: 'PATCH', body: JSON.stringify({ x, y }) });
 export const servicePhotoUrl = (service: Service) => service.fotoUrl ? `${apiUrl}${service.fotoUrl}` : '';
-export const toggleService = (id: number, active: boolean) => request<Service>(`/vendedor/me/servicos/${id}/${active ? 'desativar' : 'ativar'}`, { method: 'PATCH' });
+export const archiveService = (id: number) => request<Service>(`/vendedor/me/servicos/${id}/arquivar`, { method: 'PATCH' });
+export const restoreService = (id: number) => request<Service>(`/vendedor/me/servicos/${id}/restaurar`, { method: 'PATCH' });
 export const saveProfessional = (nome: string, id?: number) => request<Professional>(`/vendedor/me/profissionais${id ? `/${id}` : ''}`, { method: id ? 'PUT' : 'POST', body: JSON.stringify({ nome }) });
-export const toggleProfessional = (id: number, active: boolean) => request<Professional>(`/vendedor/me/profissionais/${id}/${active ? 'desativar' : 'ativar'}`, { method: 'PATCH' });
+export const archiveProfessional = (id: number) => request<Professional>(`/vendedor/me/profissionais/${id}/arquivar`, { method: 'PATCH' });
+export const restoreProfessional = (id: number) => request<Professional>(`/vendedor/me/profissionais/${id}/restaurar`, { method: 'PATCH' });
 export const availability = (professionalId: number) => request<Availability>(`/vendedor/me/profissionais/${professionalId}/disponibilidade`);
 export const saveAvailability = (professionalId: number, jornadas: Availability['jornadas']) => request<Availability>(`/vendedor/me/profissionais/${professionalId}/disponibilidade`, { method: 'PUT', body: JSON.stringify({ jornadas }) });
 export const scheduleBlocks = (professionalId: number) => request<ScheduleBlock[]>(`/vendedor/me/profissionais/${professionalId}/bloqueios`);
 export const createScheduleBlock = (professionalId: number, payload: Omit<ScheduleBlock, 'id' | 'profissionalId'>) => request<ScheduleBlock>(`/vendedor/me/profissionais/${professionalId}/bloqueios`, { method: 'POST', body: JSON.stringify(payload) });
 export const deleteScheduleBlock = (professionalId: number, blockId: number) => request<void>(`/vendedor/me/profissionais/${professionalId}/bloqueios/${blockId}`, { method: 'DELETE' });
 export const appointments = (inicio: string, fim: string) => request<Appointment[]>(`/vendedor/me/agendamentos?inicio=${inicio}&fim=${fim}`);
+export const inviteProfessional = (id: number, email: string) => request<{ email: string; conviteUrl: string; expiraEm: string }>(`/vendedor/me/profissionais/${id}/convite`, { method: 'POST', body: JSON.stringify({ email }) });
+export const acceptProfessionalInvite = (token: string, senha: string) => request<{ token: string }>(`/auth/convites-profissional/${token}/aceitar`, { method: 'POST', body: JSON.stringify({ senha }) }, false);
+export const professionalProfile = () => request<Professional>('/profissional/me');
+export const professionalAgenda = (date: string) => request<Appointment[]>(`/profissional/me/agenda?data=${date}`);
+export const updateProfessionalAppointment = (id: number, status: 'EM_ATENDIMENTO' | 'CONCLUIDO') => request<Appointment>(`/profissional/me/agenda/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 
 export function hasSession() {
   const currentToken = token();

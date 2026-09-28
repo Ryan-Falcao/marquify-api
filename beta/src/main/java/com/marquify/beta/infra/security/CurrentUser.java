@@ -3,6 +3,8 @@ package com.marquify.beta.infra.security;
 import com.marquify.beta.entity.Cliente;
 import com.marquify.beta.entity.Vendedor;
 import com.marquify.beta.entity.UserRole;
+import com.marquify.beta.entity.ContaProfissional;
+import com.marquify.beta.entity.Profissional;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,7 +15,7 @@ public class CurrentUser {
     public Object principal() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal() instanceof Cliente || authentication.getPrincipal() instanceof Vendedor)) {
+                || !(authentication.getPrincipal() instanceof Cliente || authentication.getPrincipal() instanceof Vendedor || authentication.getPrincipal() instanceof ContaProfissional)) {
             throw new AuthenticationCredentialsNotFoundException("Autenticação necessária");
         }
         return authentication.getPrincipal();
@@ -37,5 +39,10 @@ public class CurrentUser {
             throw new AccessDeniedException("Acesso negado");
         }
         return vendedor;
+    }
+
+    public Profissional profissional() {
+        if (principal() instanceof ContaProfissional conta && conta.isEnabled()) return conta.getProfissional();
+        throw new AccessDeniedException("Operação exclusiva do profissional");
     }
 }

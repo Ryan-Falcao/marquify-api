@@ -17,8 +17,8 @@ SET profissional_id = (
     WHERE v.id = agendamentos.vendedor_id
 );
 
-ALTER TABLE agendamentos MODIFY COLUMN estabelecimento_id BIGINT NOT NULL;
-ALTER TABLE agendamentos MODIFY COLUMN profissional_id BIGINT NOT NULL;
+ALTER TABLE agendamentos ALTER COLUMN estabelecimento_id SET NOT NULL;
+ALTER TABLE agendamentos ALTER COLUMN profissional_id SET NOT NULL;
 ALTER TABLE agendamentos ADD CONSTRAINT fk_agendamentos_estabelecimento
     FOREIGN KEY (estabelecimento_id) REFERENCES estabelecimentos(id);
 ALTER TABLE agendamentos ADD CONSTRAINT fk_agendamentos_profissional

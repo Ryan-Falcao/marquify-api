@@ -34,7 +34,7 @@ class BookingLifecycleTests {
     @Autowired servicoRepository servicos;
     @Autowired agendamentoRepository agendamentos;
 
-    record Fixture(long vendedor, long profissional, long servico, String token, String otherToken, LocalDate data) {}
+    record Fixture(long vendedor, long profissional, long servico, String token, String otherToken, String adminToken, LocalDate data) {}
     Fixture fixture() {
         return new TransactionTemplate(transactions).execute(tx -> {
             String key = UUID.randomUUID().toString();
@@ -50,7 +50,7 @@ class BookingLifecycleTests {
             s.setEstabelecimento(e); s.setVendedor(v); s.definirProfissionais(Set.of(p)); servicos.save(s);
             var a = clientes.save(new Cliente(key + "@a.test", "unused"));
             var b = clientes.save(new Cliente(key + "@b.test", "unused"));
-            return new Fixture(v.getId(), p.getId(), s.getId(), tokens.gerarToken(a), tokens.gerarToken(b), date);
+            return new Fixture(v.getId(), p.getId(), s.getId(), tokens.gerarToken(a), tokens.gerarToken(b), tokens.gerarToken(v), date);
         });
     }
     String body(Fixture f, String time) {
@@ -127,5 +127,24 @@ class BookingLifecycleTests {
                 .contentType("application/json").content(body(f,"12:00"))).andExpect(status().isConflict());
         mvc.perform(post("/agendamento").header("Authorization", "Bearer " + f.token())
                 .contentType("application/json").content(body(f,"23:45"))).andExpect(status().isConflict());
+    }
+
+    @Test
+    void archivedServicesAndProfessionalsKeepHistoryAndRejectNewBookings() throws Exception {
+        var f = fixture(); long appointmentId = book(f, "10:00");
+        mvc.perform(patch("/vendedor/me/servicos/" + f.servico() + "/arquivar").header("Authorization", "Bearer " + f.adminToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(false));
+        mvc.perform(post("/agendamento").header("Authorization", "Bearer " + f.token())
+                .contentType("application/json").content(body(f, "11:00"))).andExpect(status().isNotFound());
+        assertThat(agendamentos.findById(appointmentId)).isPresent();
+        mvc.perform(patch("/vendedor/me/servicos/" + f.servico() + "/restaurar").header("Authorization", "Bearer " + f.adminToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(true));
+        mvc.perform(patch("/vendedor/me/profissionais/" + f.profissional() + "/arquivar").header("Authorization", "Bearer " + f.adminToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(false));
+        mvc.perform(post("/agendamento").header("Authorization", "Bearer " + f.token())
+                .contentType("application/json").content(body(f, "11:00"))).andExpect(status().isNotFound());
+        assertThat(agendamentos.findById(appointmentId)).isPresent();
+        mvc.perform(patch("/vendedor/me/profissionais/" + f.profissional() + "/restaurar").header("Authorization", "Bearer " + f.adminToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(true));
     }
 }

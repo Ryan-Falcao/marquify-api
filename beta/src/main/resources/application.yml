@@ -24,6 +24,12 @@ api:
       secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:2h}
 
+payments:
+  mercado-pago:
+    access-token: ${MERCADO_PAGO_ACCESS_TOKEN:}
+    webhook-secret: ${MERCADO_PAGO_WEBHOOK_SECRET:}
+    valor-profissional: ${MERCADO_PAGO_PROFESSIONAL_PRICE:}
+
 server:
   shutdown: graceful
   port: ${PORT:8080}

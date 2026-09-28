@@ -15,7 +15,7 @@ SET estabelecimento_id = (
     WHERE e.legado_vendedor_id = vendedor.id
 );
 
-ALTER TABLE vendedor MODIFY COLUMN estabelecimento_id BIGINT NOT NULL;
+ALTER TABLE vendedor ALTER COLUMN estabelecimento_id SET NOT NULL;
 ALTER TABLE vendedor ADD CONSTRAINT uk_vendedor_estabelecimento UNIQUE (estabelecimento_id);
 ALTER TABLE vendedor ADD CONSTRAINT fk_vendedor_estabelecimento
     FOREIGN KEY (estabelecimento_id) REFERENCES estabelecimentos(id);

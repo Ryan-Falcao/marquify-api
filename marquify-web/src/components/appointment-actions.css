@@ -1,10 +1,41 @@
-.appointment-actions { display: grid; gap: 10px; }
-.appointment-actions > div { display: flex; gap: 10px; flex-wrap: wrap; }
-.appointment-actions .appointment-action-overlay { position: fixed; inset: 0; z-index: 1000; background: #17232c88; display: grid; place-items: center; padding: 16px; }
-.appointment-actions .appointment-action-dialog { background: white; color: #202b31; padding: 24px; border-radius: 18px; width: min(100%, 480px); max-height: 85dvh; overflow-y: auto; box-sizing: border-box; }
-.appointment-action-dialog p { line-height: 1.5; margin: 12px 0; }
-.appointment-action-dialog input { display: block; width: 100%; min-height: 44px; box-sizing: border-box; }
-.appointment-action-dialog .reschedule-times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 230px; overflow-y: auto; margin-top: 16px; }
-.appointment-action-dialog button { min-height: 44px; border: 1px solid #ddd; padding: 8px 12px; border-radius: 8px; }
-.appointment-action-dialog .selected { background: #202b31; color: white; }
-.appointment-action-dialog footer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.appointment-actions { display: grid; justify-items: end; gap: 8px; }
+.calendar-action { position: relative; }
+.calendar-trigger { min-height: 31px; border: 0; padding: 0; background: transparent; color: #617067; font: 800 10px Manrope, Arial, sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.calendar-trigger:hover { color: var(--green, #245945); }
+.calendar-menu { position: absolute; right: 0; z-index: 20; display: grid; width: 220px; margin-top: 7px; overflow: hidden; border: 1px solid #e2e7e1; border-radius: 13px; background: #fff; box-shadow: 0 12px 28px #27342b24; }
+.calendar-menu a, .calendar-menu button { display: flex; justify-content: space-between; align-items: center; min-height: 39px; box-sizing: border-box; border: 0; border-bottom: 1px solid #edf0ec; padding: 0 12px; background: #fff; color: #344139; font: 800 10px Manrope, Arial, sans-serif; text-align: left; text-decoration: none; cursor: pointer; }
+.calendar-menu a:hover, .calendar-menu button:hover { background: #f4f8f4; color: var(--green, #245945); }
+.calendar-menu small { padding: 9px 12px; color: #7b857e; font-size: 9px; line-height: 1.35; }
+.appointment-trigger-group { display: flex; gap: 7px; }
+.appointment-trigger { min-height: 34px; border: 1px solid transparent; border-radius: 9px; padding: 0 11px; background: #fff; font: 800 10px Manrope, Arial, sans-serif; cursor: pointer; transition: transform .18s, box-shadow .18s, background .18s; }
+.appointment-trigger:hover { transform: translateY(-1px); box-shadow: 0 5px 12px #26313918; }
+.appointment-trigger.reschedule { border-color: color-mix(in srgb, var(--green, #245945) 26%, #d9ddd8); color: var(--green, #245945); }
+.appointment-trigger.reschedule:hover { background: color-mix(in srgb, var(--green, #245945) 8%, #fff); }
+.appointment-trigger.cancel { border-color: #f0d5ce; color: #a45141; }
+.appointment-trigger.cancel:hover { background: #fff4f1; }
+.appointment-action-success { max-width: 190px; margin: 7px 0 0; color: #487252; font-size: 9px; font-weight: 800; line-height: 1.4; text-align: right; }
+.appointment-actions .appointment-action-overlay { position: fixed; inset: 0; z-index: 1000; background: #14231ed1; display: grid; place-items: center; padding: 18px; backdrop-filter: blur(5px); }
+.appointment-actions .appointment-action-dialog { width: min(100%, 470px); max-height: min(82dvh, 660px); overflow-y: auto; box-sizing: border-box; border: 1px solid #ebe6de; border-radius: 22px; padding: 28px; background: #fffdf9; color: #263139; box-shadow: 0 24px 70px #07120e55; }
+.appointment-action-dialog .dialog-eyebrow { margin: 0 0 8px; color: var(--green, #245945); font-size: 9px; font-weight: 900; letter-spacing: .13em; }
+.appointment-action-dialog h2 { margin: 0; font-size: clamp(22px, 5vw, 28px); line-height: 1.08; letter-spacing: -.045em; }
+.appointment-action-dialog .dialog-appointment { margin: 9px 0 18px; color: #77807b; font-size: 12px; font-weight: 700; }
+.appointment-action-dialog .dialog-rule, .appointment-action-dialog .dialog-warning { margin: 0 0 16px; border-radius: 12px; padding: 12px 13px; font-size: 11px; line-height: 1.55; }
+.appointment-action-dialog .dialog-rule { border: 1px solid #dfe8e0; background: #f3f8f3; color: #52665a; }
+.appointment-action-dialog .dialog-warning { border: 1px solid #f1ddd6; background: #fff5f2; color: #885446; }
+.appointment-action-dialog label { display: grid; gap: 7px; color: #59665f; font-size: 11px; font-weight: 800; }
+.appointment-action-dialog input { display: block; width: 100%; min-height: 46px; box-sizing: border-box; border: 1px solid #d9ded9; border-radius: 10px; padding: 0 11px; background: #fff; color: #263139; font: 13px Manrope, Arial, sans-serif; }
+.appointment-action-dialog .reschedule-times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 210px; overflow-y: auto; margin: 16px 0; }
+.appointment-action-dialog .reschedule-times button { min-height: 42px; border: 1px solid #dce3dd; border-radius: 10px; background: #fff; color: var(--green, #245945); font: 800 12px 'DM Mono', monospace; cursor: pointer; }
+.appointment-action-dialog .reschedule-times button:hover:not(:disabled) { border-color: var(--green, #245945); background: #f1f8f2; }
+.appointment-action-dialog .reschedule-times .selected { border-color: var(--green, #245945); background: var(--green, #245945); color: #fff; box-shadow: 0 5px 12px #24594535; }
+.appointment-action-dialog .reschedule-review { display: grid; gap: 4px; margin: 4px 0 13px; padding: 12px 13px; border: 1px solid color-mix(in srgb, var(--green, #245945) 25%, #dce3dd); border-radius: 12px; background: color-mix(in srgb, var(--green, #245945) 7%, #fff); }.appointment-action-dialog .reschedule-review span { color: var(--green, #245945); font-size: 8px; font-weight: 900; letter-spacing: .12em; }.appointment-action-dialog .reschedule-review strong { color: #2d4035; font-size: 12px; text-transform: capitalize; }.appointment-action-dialog .reschedule-review small { color: #6d7b72; font-size: 10px; line-height: 1.4; }
+.appointment-action-dialog .reschedule-times button:disabled, .appointment-action-dialog footer button:disabled { cursor: not-allowed; opacity: .52; }
+.appointment-action-dialog > p:not([class]) { margin: 13px 0; color: #6f7a73; font-size: 11px; line-height: 1.5; }
+.appointment-action-dialog .dialog-message { margin: 14px 0 0; color: #a45141; font-size: 11px; font-weight: 700; }
+.appointment-action-dialog .dialog-message button { margin-left: 8px; border: 0; background: transparent; color: var(--green, #245945); font: inherit; font-weight: 900; text-decoration: underline; cursor: pointer; }
+.appointment-action-dialog footer { display: grid; grid-template-columns: .8fr 1.2fr; gap: 9px; margin-top: 24px; }
+.appointment-action-dialog footer button { min-height: 46px; border-radius: 11px; padding: 0 13px; font: 800 11px Manrope, Arial, sans-serif; cursor: pointer; }
+.appointment-action-dialog .dialog-back { border: 1px solid #dce1dc; background: #fff; color: #526159; }
+.appointment-action-dialog .dialog-confirm { border: 1px solid var(--green, #245945); background: var(--green, #245945); color: #fff; box-shadow: 0 7px 16px #24594528; }
+.appointment-action-dialog .dialog-confirm.danger { border-color: #a45141; background: #a45141; box-shadow: 0 7px 16px #a4514133; }
+@media (max-width: 600px) { .appointment-actions { justify-items: start; } .calendar-menu { right: auto; left: 0; } .appointment-trigger { min-height: 36px; } .appointment-action-success { max-width:none; text-align:left; } .appointment-actions .appointment-action-dialog { padding: 23px 18px; border-radius: 19px; } .appointment-action-dialog footer { grid-template-columns: 1fr; } .appointment-action-dialog .dialog-confirm { grid-row: 1; } }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, Clock3, Copy, DollarSign, ExternalLink, Grid2X2, Link2, Menu, Palette, QrCode, Scissors, Settings2, Sparkles, Users, X, Zap } from 'lucide-react';
 import { ApiError, bookingLink, dashboardData, logout } from '../services/api';
@@ -17,6 +17,7 @@ const navItems = [
 
 export function DashboardPage({ onExit, onSessionExpired }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState<DashboardData | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [reload, setReload] = useState(0);
@@ -25,6 +26,8 @@ export function DashboardPage({ onExit, onSessionExpired }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const onboardingKey = `marquify-onboarding-${localStorage.getItem('marquify-estabelecimento-id') || 'atual'}`;
+  const [onboardingOpen, setOnboardingOpen] = useState(() => new URLSearchParams(location.search).get('tutorial') === 'novo' && localStorage.getItem(onboardingKey) !== 'concluido');
 
   useEffect(() => {
     let active = true;
@@ -53,12 +56,18 @@ export function DashboardPage({ onExit, onSessionExpired }: Props) {
   }
 
   function exit() { logout(); onExit(); }
+  function concluirTutorial(destino?: string) {
+    localStorage.setItem(onboardingKey, 'concluido');
+    setOnboardingOpen(false);
+    if (destino) navigate(destino);
+    else if (location.search) navigate('/', { replace: true });
+  }
 
   return <div className="dashboard-shell">
     <aside className={`dashboard-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
       <div className="sidebar-head"><div className="dash-brand"><span className="dash-brand-mark">marquify<span>.</span></span><span className="dash-brand-tag">ADMIN</span></div><button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu"><X /></button></div>
       <div className="workspace-switcher"><div className="workspace-avatar">{initials}</div><div><strong>Seu estabelecimento</strong><span>Área administrativa</span></div><ChevronDown size={15} /></div>
-      <nav className="dashboard-nav" aria-label="Menu administrativo"><span className="nav-caption">GESTÃO</span>{navItems.map(([path, label, Icon]) => <button key={path} className={path === '/' ? 'active' : ''} onClick={() => navigate(path)}><Icon /><span>{label}</span>{path === '/agenda' && data?.agendamentosHoje ? <i className="nav-count">{data.agendamentosHoje}</i> : null}</button>)}<span className="nav-caption nav-caption-bottom">CONTA</span><button disabled title="Disponível em breve"><Settings2 /><span>Configurações</span></button><button className="nav-logout" onClick={exit}><ArrowLeft /><span>Sair</span></button></nav>
+      <nav className="dashboard-nav" aria-label="Menu administrativo"><span className="nav-caption">GESTÃO</span>{navItems.map(([path, label, Icon]) => <button key={path} className={path === '/' ? 'active' : ''} onClick={() => navigate(path)}><Icon /><span>{label}</span>{path === '/agenda' && data?.agendamentosHoje ? <i className="nav-count">{data.agendamentosHoje}</i> : null}</button>)}<span className="nav-caption nav-caption-bottom">CONTA</span><button onClick={() => navigate('/configuracoes')}><Settings2 /><span>Configurações</span></button><button className="nav-logout" onClick={exit}><ArrowLeft /><span>Sair</span></button></nav>
       <div className="sidebar-help"><Sparkles size={17} /><strong>Divulgue sua agenda</strong><span>Use seu link ou QR Code.</span><button onClick={() => setQrOpen(true)}>Exibir QR Code <ArrowRight /></button></div>
       <div className="sidebar-profile"><div className="profile-avatar">{initials}</div><div><strong>{data?.nome || 'Carregando…'}</strong><span>Proprietário</span></div></div>
     </aside>
@@ -67,12 +76,27 @@ export function DashboardPage({ onExit, onSessionExpired }: Props) {
         {state === 'error' ? <section className="panel dashboard-error" role="alert"><h2>Não foi possível carregar a dashboard.</h2><p>Confirme se a API está funcionando e tente novamente.</p><button className="primary-button" onClick={() => setReload((value) => value + 1)}>Tentar novamente</button></section> : <>
           <div className="metric-grid metric-grid-revenue" aria-busy={state === 'loading'}><Metric icon={DollarSign} label="Total recebido" value={state === 'loading' ? '—' : (data?.totalFaturado ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} detail="atendimentos já finalizados" tone="money" /><Metric icon={CalendarDays} label="Agendamentos de hoje" value={state === 'loading' ? '—' : String(data?.agendamentosHoje ?? 0)} detail="atendimentos confirmados" tone="coral" /><Metric icon={Clock3} label="Próximo atendimento" value={state === 'loading' ? '—' : appointments.find((item) => appointmentVisualState(item, currentTime) === 'upcoming')?.horaInicio.slice(0, 5) || 'Livre'} detail={appointments.find((item) => appointmentVisualState(item, currentTime) === 'upcoming')?.servico?.nome || 'sem atendimento próximo'} tone="navy" /><Metric icon={Scissors} label="Serviços ativos" value={state === 'loading' ? '—' : String(data?.servicosAtivos ?? 0)} detail="no catálogo" tone="sage" /><Metric icon={Users} label="Profissionais ativos" value={state === 'loading' ? '—' : String(data?.profissionaisAtivos ?? 0)} detail="na equipe" tone="sand" /></div>
           <div className="content-grid"><section className="panel timeline-panel"><div className="panel-heading"><div><h2>Agenda de hoje</h2><p>Status atualizado conforme o horário</p></div><button className="quiet-button" onClick={() => navigate('/agenda')}>Ver agenda completa <ArrowRight size={15} /></button></div>{state === 'loading' ? <p className="dashboard-empty">Carregando agenda…</p> : appointments.length ? <Timeline appointments={appointments.slice(0, 4)} now={currentTime} /> : <div className="dashboard-empty"><CalendarDays size={24} /><strong>Sua agenda está livre hoje.</strong><span>Compartilhe seu link para receber novos agendamentos.</span></div>}</section>
-            <aside className="quick-column"><section className="panel quick-panel"><div className="panel-heading"><div><h2>Atalhos</h2><p>Ganhe tempo no dia a dia</p></div><Zap size={18} className="panel-spark" /></div><div className="quick-actions"><QuickAction icon={Scissors} label="Criar serviço" action={() => navigate('/catalogo')} /><QuickAction icon={Users} label="Adicionar profissional" action={() => navigate('/profissionais')} /><QuickAction icon={Clock3} label="Editar jornada" action={() => navigate('/jornada')} /><QuickAction icon={QrCode} label="Exibir QR Code" action={() => setQrOpen(true)} /></div></section>{publicLink && <section className="public-link-card"><div className="link-card-top"><div className="link-icon"><Link2 size={16} /></div><span>SEU LINK PÚBLICO</span></div><strong>{publicLink.replace(/^https?:\/\//, '')}</strong><p>Compartilhe e receba agendamentos.</p><button onClick={copyLink}>{copied ? <><Check size={15} /> Copiado</> : <><Copy size={15} /> Copiar link</>}</button></section>}</aside></div>
+            <aside className="quick-column"><section className="panel quick-panel"><div className="panel-heading"><div><h2>Atalhos</h2><p>Ganhe tempo no dia a dia</p></div><Zap size={18} className="panel-spark" /></div><div className="quick-actions"><QuickAction icon={Scissors} label="Criar serviço" action={() => navigate('/catalogo')} /><QuickAction icon={Users} label="Adicionar profissional" action={() => navigate('/profissionais')} /><QuickAction icon={Clock3} label="Editar jornada" action={() => navigate('/jornada')} /><QuickAction icon={QrCode} label="Exibir QR Code" action={() => setQrOpen(true)} /><QuickAction icon={Sparkles} label="Como começar" action={() => setOnboardingOpen(true)} /></div></section>{publicLink && <section className="public-link-card"><div className="link-card-top"><div className="link-icon"><Link2 size={16} /></div><span>SEU LINK PÚBLICO</span></div><strong>{publicLink.replace(/^https?:\/\//, '')}</strong><p>Compartilhe e receba agendamentos.</p><button onClick={copyLink}>{copied ? <><Check size={15} /> Copiado</> : <><Copy size={15} /> Copiar link</>}</button></section>}</aside></div>
           <section className="panel appointments-panel"><div className="panel-heading"><div><h2>Agendamentos de hoje</h2><p>Acompanhe o andamento dos atendimentos.</p></div><button className="quiet-button" onClick={() => navigate('/agenda')}>Ver todos <ArrowRight size={15} /></button></div>{appointments.length ? <AppointmentRows appointments={appointments} now={currentTime} /> : <p className="dashboard-empty compact-empty">Nenhum atendimento confirmado para hoje.</p>}</section>
         </>}
       </div></main>
-    </div>{sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" />}{qrOpen && <div className="qr-overlay" onClick={() => setQrOpen(false)}><div className="qr-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setQrOpen(false)} aria-label="Fechar"><X size={17} /></button>{publicLink ? <QRCodeSVG value={publicLink} size={140} level="M" includeMargin /> : <QrCode size={100} />}<h2>Seu QR Code</h2><p>Clientes podem apontar a câmera para agendar.</p></div></div>}
+    </div>{sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" />}{qrOpen && <div className="qr-overlay" onClick={() => setQrOpen(false)}><div className="qr-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setQrOpen(false)} aria-label="Fechar"><X size={17} /></button>{publicLink ? <QRCodeSVG value={publicLink} size={140} level="M" includeMargin /> : <QrCode size={100} />}<h2>Seu QR Code</h2><p>Clientes podem apontar a câmera para agendar.</p></div></div>}{onboardingOpen && <OnboardingTour onClose={() => concluirTutorial()} onFinish={() => concluirTutorial('/catalogo')} />}
   </div>;
+}
+
+const tutorialSteps = [
+  { icon: Scissors, eyebrow: 'PRIMEIRO PASSO', title: 'Monte seu catálogo', text: 'Cadastre os serviços que seus clientes poderão escolher ao agendar.', hint: 'Você pode editar preço, duração e profissionais depois.' },
+  { icon: Users, eyebrow: 'DEPOIS', title: 'Organize sua equipe', text: 'Inclua profissionais e escolha quem realiza cada serviço.', hint: 'Se você atende sozinho, seu perfil já está preparado.' },
+  { icon: Clock3, eyebrow: 'DEFINA OS HORÁRIOS', title: 'Ajuste sua jornada', text: 'Informe os dias e horários em que cada pessoa pode atender.', hint: 'Assim só aparecem horários realmente disponíveis.' },
+  { icon: Link2, eyebrow: 'PRONTO PARA DIVULGAR', title: 'Compartilhe sua agenda', text: 'Personalize a página pública e envie seu link ou QR Code aos clientes.', hint: 'Você pode mudar tudo quando quiser.' }
+] as const;
+
+function OnboardingTour({ onClose, onFinish }: { onClose: () => void; onFinish: () => void }) {
+  const [step, setStep] = useState(0);
+  const current = tutorialSteps[step];
+  const Icon = current.icon;
+  const last = step === tutorialSteps.length - 1;
+  return <div className="onboarding-backdrop" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><section className="onboarding-dialog"><button className="onboarding-close" onClick={onClose} aria-label="Pular apresentação"><X size={18} /></button><div className="onboarding-progress" aria-label={`Etapa ${step + 1} de ${tutorialSteps.length}`}>{tutorialSteps.map((item, index) => <span key={item.title} className={index <= step ? 'is-active' : ''} />)}</div><div className="onboarding-icon"><Icon size={25} /></div><p className="onboarding-eyebrow">{current.eyebrow}</p><h2 id="onboarding-title">{current.title}</h2><p className="onboarding-text">{current.text}</p><div className="onboarding-hint"><Sparkles size={15} /><span>{current.hint}</span></div><footer><button className="onboarding-skip" onClick={onClose}>{step === 0 ? 'Pular por agora' : 'Terminar depois'}</button><div className="onboarding-actions">{step > 0 && <button className="secondary-button" onClick={() => setStep((value) => value - 1)}>Voltar</button>}<button className="primary-button" onClick={() => last ? onFinish() : setStep((value) => value + 1)}>{last ? 'Criar primeiro serviço' : 'Continuar'} <ArrowRight size={16} /></button></div></footer></section></div>;
 }
 
 function Metric({ icon: Icon, label, value, detail, tone }: { icon: typeof CalendarDays; label: string; value: string; detail: string; tone: string }) { return <article className="metric"><div className={`metric-icon ${tone}`}><Icon size={18} /></div><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>; }

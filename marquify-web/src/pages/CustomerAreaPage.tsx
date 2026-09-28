@@ -1,7 +1,7 @@
 import { AppointmentActions } from '../components/AppointmentActions';
 import { CSSProperties, FormEvent, useEffect, useState } from 'react';
-import { CalendarDays, Clock3, LogOut, Mail, Phone, Scissors, UserRound } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { CalendarClock, CalendarDays, CheckCircle2, Clock3, LogOut, Mail, Phone, Scissors, ShieldCheck, UserRound, XCircle } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { PublicBottomNav } from '../components/PublicBottomNav';
 import { ApiError, customerAppointments, customerProfile, loginCustomer, publicBusiness } from '../services/api';
 import type { Appointment, CustomerProfile, PublicBusiness } from '../types';
@@ -10,6 +10,7 @@ import { appearanceFromBusiness, loadAppearance } from './PersonalizationPage';
 
 export function CustomerAreaPage({ view }: { view: 'appointments' | 'profile' }) {
   const { codigoPublico = '' } = useParams();
+  const navigate = useNavigate();
   const [token, setToken] = useState(() => localStorage.getItem('marquify-client-token') || '');
   const [business, setBusiness] = useState<PublicBusiness | null>(null);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
@@ -18,7 +19,7 @@ export function CustomerAreaPage({ view }: { view: 'appointments' | 'profile' })
   const [message, setMessage] = useState('');
   const appearance = business ? appearanceFromBusiness(business) : loadAppearance(codigoPublico);
 
-  useEffect(() => { publicBusiness(codigoPublico).then(setBusiness).catch(() => setBusiness(null)); }, [codigoPublico]);
+  useEffect(() => { publicBusiness(codigoPublico).then((estabelecimento) => { setBusiness(estabelecimento); if (estabelecimento.slugPublico !== codigoPublico) navigate(`/agendar/${estabelecimento.slugPublico}/${view === 'appointments' ? 'minha-conta' : 'perfil'}`, { replace: true }); }).catch(() => setBusiness(null)); }, [codigoPublico, navigate, view]);
   useEffect(() => { if (!token) { setLoading(false); return; } setLoading(true); Promise.all([customerProfile(token), customerAppointments(token)]).then(([person, appointments]) => { setProfile(person); setItems(appointments); }).catch(() => { localStorage.removeItem('marquify-client-token'); setToken(''); setMessage('Sua sessão expirou. Entre novamente.'); }).finally(() => setLoading(false)); }, [token]);
 
   async function login(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); setMessage(''); setLoading(true); try { const result = await loginCustomer({ login: String(form.get('email')), senha: String(form.get('senha')) }); localStorage.setItem('marquify-client-token', result.token); setToken(result.token); } catch (error) { setMessage(error instanceof ApiError ? error.message : 'Não foi possível entrar.'); setLoading(false); } }
@@ -28,8 +29,21 @@ export function CustomerAreaPage({ view }: { view: 'appointments' | 'profile' })
 }
 
 function AppointmentsView({ items, token, onUpdated, message }: { items: Appointment[]; token: string; onUpdated: (item: Appointment) => void; message: string }) {
-  const sorted = [...items].sort((a, b) => `${b.data}${b.horaInicio}`.localeCompare(`${a.data}${a.horaInicio}`));
-  return <div className="portal-view"><p className="portal-eyebrow">SUA AGENDA</p><h1>Meus agendamentos</h1><p className="portal-intro">Todos os seus horários em um só lugar.</p>{message && <p className="portal-error">{message}</p>}<div className="portal-appointments">{sorted.length ? sorted.map((item) => { const state = appointmentVisualState(item); return <article className={`portal-appointment portal-${state}`} key={item.id}><div className="portal-date"><strong>{new Date(`${item.data}T12:00:00`).getDate()}</strong><span>{new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span></div><div className="portal-appointment-main"><span className={`portal-status status-${state}`}>{appointmentStateLabel[state]}</span><h2>{item.servico?.nome || 'Serviço'}</h2><p><Clock3 size={14} /> {item.horaInicio.slice(0, 5)}–{item.horaFim.slice(0, 5)} · {item.profissional?.nome}</p><small>{item.estabelecimento?.nome}</small></div><AppointmentActions item={item} token={token} onUpdated={onUpdated} /></article>; }) : <div className="portal-empty"><CalendarDays size={28} /><h2>Nenhum agendamento</h2><p>Quando você reservar um horário, ele aparecerá aqui.</p></div>}</div></div>;
+  const sorted = [...items].sort((a, b) => `${a.data}${a.horaInicio}`.localeCompare(`${b.data}${b.horaInicio}`));
+  const groups = [
+    { key: 'upcoming', title: 'Próximos agendamentos', description: 'Horários confirmados que ainda vão acontecer.', icon: CalendarClock, items: sorted.filter((item) => ['upcoming', 'in-progress'].includes(appointmentVisualState(item))) },
+    { key: 'completed', title: 'Concluídos', description: 'Atendimentos que já aconteceram.', icon: CheckCircle2, items: sorted.filter((item) => appointmentVisualState(item) === 'completed').reverse() },
+    { key: 'cancelled', title: 'Cancelados', description: 'Agendamentos que não serão realizados.', icon: XCircle, items: sorted.filter((item) => appointmentVisualState(item) === 'cancelled').reverse() }
+  ];
+
+  return <div className="portal-view"><p className="portal-eyebrow">SUA AGENDA</p><h1>Meus agendamentos</h1><p className="portal-intro">Acompanhe seus horários e faça alterações quando precisar.</p>{message && <p className="portal-error">{message}</p>}<section className="appointment-rules" aria-label="Regras de alteração dos agendamentos"><ShieldCheck size={20} /><div><strong>Precisa alterar um horário?</strong><p>Você pode remarcar ou cancelar até o início do atendimento, no fuso do estabelecimento. A remarcação mantém o serviço, o profissional, o preço e a duração contratados.</p></div></section>{items.length ? <div className="appointment-groups">{groups.map((group) => group.items.length ? <section className={`appointment-group ${group.key}`} key={group.key}><header><div><span><group.icon size={16} /></span><div><h2>{group.title}</h2><p>{group.description}</p></div></div><small>{group.items.length}</small></header><div className="portal-appointments">{group.items.map((item) => <AppointmentCard item={item} token={token} onUpdated={onUpdated} key={item.id} />)}</div></section> : null)}</div> : <div className="portal-empty"><CalendarDays size={28} /><h2>Nenhum agendamento</h2><p>Quando você reservar um horário, ele aparecerá aqui.</p></div>}</div>;
+}
+
+function AppointmentCard({ item, token, onUpdated }: { item: Appointment; token: string; onUpdated: (item: Appointment) => void }) {
+  const state = appointmentVisualState(item);
+  const date = new Date(`${item.data}T12:00:00`);
+  const price = item.valorCobrado == null ? 'Preço a confirmar' : item.valorCobrado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return <article className={`portal-appointment portal-${state}`}><div className="portal-date"><strong>{date.getDate()}</strong><span>{date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span></div><div className="portal-appointment-main"><span className={`portal-status status-${state}`}>{appointmentStateLabel[state]}</span><h2>{item.servico?.nome || 'Serviço'}</h2><p><Clock3 size={14} /> {item.horaInicio.slice(0, 5)}–{item.horaFim.slice(0, 5)} · {item.profissional?.nome || 'Profissional'}</p><small>{item.estabelecimento?.nome || 'Estabelecimento'}</small><div className="appointment-details"><span>{price}</span><span>{item.duracaoMinutos} min</span></div></div><AppointmentActions item={item} token={token} onUpdated={onUpdated} /></article>;
 }
 
 function ProfileView({ profile, onLogout }: { profile: CustomerProfile | null; onLogout: () => void }) {

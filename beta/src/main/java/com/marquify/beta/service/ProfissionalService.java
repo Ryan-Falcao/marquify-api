@@ -22,6 +22,7 @@ public class ProfissionalService {
     private final vendedorRepository vendedores;
     private final ProfissionalRepository profissionais;
     private final CurrentUser currentUser;
+    private final AssinaturaService assinaturas;
 
     @Transactional(readOnly = true)
     public List<ProfissionalResponse> listar(Long vendedorId) {
@@ -41,12 +42,14 @@ public class ProfissionalService {
 
     public ProfissionalResponse criar(Long vendedorId, ProfissionalRequest request) {
         Vendedor vendedor = vendedorDoUsuario(vendedorId);
+        assinaturas.validarNovoProfissional(vendedor.getEstabelecimento().getId());
         Profissional profissional = new Profissional(vendedor.getEstabelecimento(), request.nome());
         return ProfissionalResponse.from(profissionais.save(profissional));
     }
 
     public ProfissionalResponse criarAtual(ProfissionalRequest request) {
         Vendedor vendedor = vendedorAtual();
+        assinaturas.validarNovoProfissional(vendedor.getEstabelecimento().getId());
         return ProfissionalResponse.from(profissionais.save(new Profissional(vendedor.getEstabelecimento(), request.nome())));
     }
 
@@ -63,8 +66,19 @@ public class ProfissionalService {
     }
 
     public ProfissionalResponse desativarAtual(Long profissionalId) {
+        return arquivarAtual(profissionalId);
+    }
+
+    public ProfissionalResponse arquivarAtual(Long profissionalId) {
         Profissional profissional = profissionalDoEstabelecimentoAtual(profissionalId);
-        profissional.desativar();
+        profissional.arquivar();
+        return ProfissionalResponse.from(profissionais.save(profissional));
+    }
+
+    public ProfissionalResponse restaurarAtual(Long profissionalId) {
+        Profissional profissional = profissionalDoEstabelecimentoAtual(profissionalId);
+        if (!profissional.isAtivo()) assinaturas.validarNovoProfissional(profissional.getEstabelecimento().getId());
+        profissional.restaurar();
         return ProfissionalResponse.from(profissionais.save(profissional));
     }
 
@@ -81,8 +95,19 @@ public class ProfissionalService {
     }
 
     public ProfissionalResponse desativar(Long vendedorId, Long profissionalId) {
+        return arquivar(vendedorId, profissionalId);
+    }
+
+    public ProfissionalResponse arquivar(Long vendedorId, Long profissionalId) {
         Profissional profissional = profissionalDoEstabelecimento(vendedorId, profissionalId);
-        profissional.desativar();
+        profissional.arquivar();
+        return ProfissionalResponse.from(profissionais.save(profissional));
+    }
+
+    public ProfissionalResponse restaurar(Long vendedorId, Long profissionalId) {
+        Profissional profissional = profissionalDoEstabelecimento(vendedorId, profissionalId);
+        if (!profissional.isAtivo()) assinaturas.validarNovoProfissional(profissional.getEstabelecimento().getId());
+        profissional.restaurar();
         return ProfissionalResponse.from(profissionais.save(profissional));
     }
 

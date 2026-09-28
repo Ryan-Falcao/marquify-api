@@ -2,7 +2,13 @@ $ErrorActionPreference = 'Stop'
 
 $jdkBase = Join-Path $PSScriptRoot '..\.tools\jdk21'
 $jdk = Get-ChildItem $jdkBase -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($null -eq $jdk) { throw "Java 21 portátil não foi encontrado em $jdkBase." }
+if ($null -ne $jdk) {
+    $env:JAVA_HOME = $jdk.FullName
+} else {
+    $java = Get-Command java -ErrorAction SilentlyContinue
+    if ($null -eq $java) { throw "Java 21 não foi encontrado. Instale-o ou disponibilize o JDK portátil em $jdkBase." }
+    $env:JAVA_HOME = Split-Path (Split-Path $java.Source -Parent) -Parent
+}
 
 $envFile = Join-Path $PSScriptRoot '.env'
 if (-not (Test-Path $envFile)) { throw 'Arquivo .env não encontrado. Execute .\start-postgres.ps1 primeiro.' }
@@ -16,7 +22,6 @@ if (-not (Test-NetConnection -ComputerName 'localhost' -Port $postgresPort -Info
     throw "PostgreSQL não está acessível em localhost:${postgresPort}. Execute .\start-postgres.ps1 depois de abrir o Docker Desktop."
 }
 
-$env:JAVA_HOME = $jdk.FullName
 $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 $env:SPRING_PROFILES_ACTIVE = 'postgres'
 $userHome = [Environment]::GetFolderPath('UserProfile')

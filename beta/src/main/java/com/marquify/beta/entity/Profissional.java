@@ -64,11 +64,19 @@ public class Profissional {
     }
 
     public void ativar() {
-        this.ativo = true;
+        restaurar();
     }
 
     public void desativar() {
+        arquivar();
+    }
+
+    public void arquivar() {
         this.ativo = false;
+    }
+
+    public void restaurar() {
+        this.ativo = true;
     }
 
     @PrePersist

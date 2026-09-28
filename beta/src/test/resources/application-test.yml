@@ -1,12 +1,14 @@
-# Chave pública e descartável usada SOMENTE nos testes.
+# Banco descartável PostgreSQL iniciado pelo Testcontainers durante os testes.
 spring:
-  flyway:
-    locations: ${TEST_FLYWAY_LOCATIONS:classpath:db/migration}
-    sql-migration-suffixes: ${TEST_FLYWAY_SUFFIXES:.sql}
   datasource:
-    url: ${TEST_DB_URL:jdbc:h2:mem:marquify;MODE=MySQL;DB_CLOSE_DELAY=-1}
-    username: ${TEST_DB_USERNAME:sa}
-    password: ${TEST_DB_PASSWORD:}
+    url: jdbc:tc:postgresql:16-alpine:///marquify_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: test
+    password: test
+  flyway:
+    locations: classpath:db/migration/postgresql
+    sql-migration-suffixes: .pgsql
+
 api:
   login-rate-limit:
     max-attempts: 10000

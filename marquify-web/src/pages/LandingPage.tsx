@@ -3,7 +3,7 @@ import { MarquifyLanding } from '../components/MarquifyLanding';
 import '../landing-v0.css';
 import { ApiError, registerBusiness } from '../services/api';
 
-interface Props { onAuthenticated: () => void; onLogin: () => void; }
+interface Props { onAuthenticated: (newAccount?: boolean) => void; onLogin: () => void; }
 
 export function LandingPage({ onAuthenticated, onLogin }: Props) {
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -27,7 +27,7 @@ export function LandingPage({ onAuthenticated, onLogin }: Props) {
     try {
       await registerBusiness({ nome: String(form.get('nome')), estabelecimento: String(form.get('estabelecimento')), email: String(form.get('email')), senha: String(form.get('senha')) });
       setRegisterOpen(false);
-      onAuthenticated();
+      onAuthenticated(true);
     } catch (error) {
       setMessage(error instanceof ApiError && error.status === 409 ? 'Este e-mail já possui uma conta.' : 'Não foi possível criar sua conta.');
     }

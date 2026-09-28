@@ -20,7 +20,7 @@ class BetaApplicationTests {
 
 	@Test
 	void contextLoads() {
-		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("19");
+		assertThat(flyway.info().pending()).isEmpty();
 		assertThat(flyway.migrate().migrationsExecuted).isZero();
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM agendamentos", Integer.class)).isGreaterThanOrEqualTo(0);
 	}

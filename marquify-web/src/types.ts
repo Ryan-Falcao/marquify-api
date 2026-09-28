@@ -5,6 +5,15 @@ export interface BusinessProfile {
   estabelecimentoId: number;
 }
 
+export interface SubscriptionDetails {
+  plano: 'GRATUITO' | 'PROFISSIONAL';
+  status: 'PENDENTE' | 'TESTE_GRATIS' | 'ATIVA' | 'CANCELADA' | 'EXPIRADA';
+  testeGratisAte: string | null;
+  diasRestantesTeste: number;
+  limites: { servicos: number; profissionais: number; agendamentosMensais: number };
+  uso: { servicos: number; profissionais: number; agendamentosNoMes: number };
+}
+
 export interface CatalogAppearance {
   businessName: string;
   description: string;
@@ -26,7 +35,7 @@ export interface CatalogAppearance {
   serviceDurationColor: string;
   servicePriceColor: string;
   overlayOpacity: number;
-  fontStyle: 'moderna' | 'elegante' | 'classica';
+  fontStyle: 'moderna' | 'elegante' | 'classica' | 'editorial' | 'organica' | 'marcante';
   cornerStyle: 'reto' | 'suave' | 'arredondado';
   heroAlignment: 'esquerda' | 'centro';
   heroSize: 'compacta' | 'ampla';
@@ -78,7 +87,8 @@ export interface Appointment {
   data: string;
   horaInicio: string;
   horaFim: string;
-  status: 'AGENDADO' | 'CANCELADO';
+  status: 'AGENDADO' | 'EM_ATENDIMENTO' | 'CONCLUIDO' | 'CANCELADO';
+  cliente?: { id: number; nome: string } | null;
   servico: { nome: string } | null;
   profissional: { nome: string } | null;
   estabelecimento?: { nome: string; fusoHorario: string } | null;
@@ -162,6 +172,7 @@ export interface RegisterBusinessPayload {
 
 export interface PublicBusiness {
   id: number;
+  slugPublico: string;
   nome: string;
   fusoHorario: string;
   descricaoPublica: string | null;

@@ -7,7 +7,7 @@ SET estabelecimento_id = (
     WHERE vendedor.id = servicos.vendedor_id
 );
 
-ALTER TABLE servicos MODIFY COLUMN estabelecimento_id BIGINT NOT NULL;
+ALTER TABLE servicos ALTER COLUMN estabelecimento_id SET NOT NULL;
 
 ALTER TABLE servicos
     ADD CONSTRAINT fk_servicos_estabelecimento

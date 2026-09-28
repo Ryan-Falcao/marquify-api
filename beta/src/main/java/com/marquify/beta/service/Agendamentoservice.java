@@ -28,6 +28,7 @@ public class Agendamentoservice {
     private final ProfissionalRepository profissionais;
     private final DisponibilidadeService disponibilidade;
     private final CurrentUser currentUser;
+    private final AssinaturaService assinaturas;
 
     public AgendamentoResponse agendar(AgendamentoRequest request) {
         Cliente cliente = currentUser.cliente();
@@ -40,6 +41,7 @@ public class Agendamentoservice {
                     "Serviço, vendedor, profissional, data e horário são obrigatórios");
         }
         Vendedor vendedor = vendedores.findById(request.getVendedorId()).orElseThrow(this::notFound);
+        assinaturas.validarNovoAgendamento(vendedor.getEstabelecimento().getId());
         validarMomentoFuturo(request.getData(), request.getHoraInicio(), vendedor);
         Servicos servico = servicos.findByIdAndEstabelecimentoIdAndAtivoTrue(request.getServicoId(), vendedor.getEstabelecimento().getId())
                 .orElseThrow(this::notFound);
@@ -108,8 +110,9 @@ public class Agendamentoservice {
     private void validarAlteracao(Agendamento reserva) {
         if (reserva.getStatus() != Status.AGENDADO) throw new ResponseStatusException(HttpStatus.CONFLICT, "Agendamento cancelado não pode ser remarcado");
         var agora = java.time.ZonedDateTime.now(ZoneId.of(reserva.getEstabelecimento().getFusoHorario()));
-        if (!reserva.getData().atTime(reserva.getHoraInicio()).isAfter(agora.toLocalDateTime()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Só é possível cancelar ou remarcar antes do início do atendimento");
+        var limite = agora.toLocalDateTime().plusMinutes(reserva.getEstabelecimento().getAntecedenciaCancelamentoMinutos());
+        if (!reserva.getData().atTime(reserva.getHoraInicio()).isAfter(limite))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este agendamento não pode mais ser cancelado ou remarcado dentro do prazo configurado");
     }
 
     private LocalTime duracaoContratada(Agendamento reserva) {
@@ -120,6 +123,7 @@ public class Agendamentoservice {
         if (data == null || hora == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe a nova data e horário");
         Agendamento reserva = reservaAutorizada(id, true);
         validarAlteracao(reserva);
+        validarMomentoFuturo(data, hora, reserva.getVendedor());
         Profissional profissional = profissionais.findAtivoDoEstabelecimentoParaReserva(
                 reserva.getProfissional().getId(), reserva.getEstabelecimento().getId()).orElseThrow(this::notFound);
         LocalTime duracao = duracaoContratada(reserva);
@@ -157,6 +161,14 @@ public class Agendamentoservice {
         if (data.isBefore(agora.toLocalDate())
                 || (data.isEqual(agora.toLocalDate()) && !horaInicio.isAfter(agora.toLocalTime()))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível agendar em um horário que já passou");
+        }
+        var instante = data.atTime(horaInicio);
+        var estabelecimento = vendedor.getEstabelecimento();
+        if (instante.isBefore(agora.toLocalDateTime().plusMinutes(estabelecimento.getAntecedenciaMinimaMinutos()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este horário exige uma antecedência maior para agendamento");
+        }
+        if (data.isAfter(agora.toLocalDate().plusDays(estabelecimento.getJanelaMaximaAgendamentoDias()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este horário está fora da janela disponível para agendamento");
         }
     }
 }

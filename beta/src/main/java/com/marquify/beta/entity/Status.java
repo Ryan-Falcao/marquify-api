@@ -2,5 +2,7 @@ package com.marquify.beta.entity;
 
 public enum Status {
     AGENDADO,
+    EM_ATENDIMENTO,
+    CONCLUIDO,
     CANCELADO
 }

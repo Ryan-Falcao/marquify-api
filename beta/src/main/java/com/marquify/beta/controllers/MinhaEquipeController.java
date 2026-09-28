@@ -62,6 +62,16 @@ public class MinhaEquipeController {
         return ResponseEntity.ok(profissionais.desativarAtual(profissionalId));
     }
 
+    @PatchMapping("/{profissionalId}/arquivar")
+    public ResponseEntity<ProfissionalResponse> arquivar(@PathVariable Long profissionalId) {
+        return ResponseEntity.ok(profissionais.arquivarAtual(profissionalId));
+    }
+
+    @PatchMapping("/{profissionalId}/restaurar")
+    public ResponseEntity<ProfissionalResponse> restaurar(@PathVariable Long profissionalId) {
+        return ResponseEntity.ok(profissionais.restaurarAtual(profissionalId));
+    }
+
     @GetMapping("/{profissionalId}/disponibilidade")
     public ResponseEntity<DisponibilidadeResponse> disponibilidade(@PathVariable Long profissionalId) {
         return ResponseEntity.ok(disponibilidades.consultarGestaoAtual(profissionalId));

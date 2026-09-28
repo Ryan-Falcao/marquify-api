@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import com.marquify.beta.entity.Status;
 import java.time.LocalTime;
 import java.math.BigDecimal;
+import java.time.Instant;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,7 +23,10 @@ public interface agendamentoRepository extends JpaRepository<Agendamento, Long> 
     List<Agendamento> findAllByVendedorIdAndDataBetweenOrderByDataAscHoraInicioAsc(Long vendedorId, LocalDate inicio, LocalDate fim);
     List<Agendamento> findAllByVendedorIdAndDataAndStatusOrderByHoraInicioAsc(Long vendedorId, LocalDate data, Status status);
     List<Agendamento> findAllByProfissionalIdAndDataAndStatus(Long profissionalId, LocalDate data, Status status);
+    List<Agendamento> findAllByProfissionalIdAndDataOrderByHoraInicioAsc(Long profissionalId, LocalDate data);
+    java.util.Optional<Agendamento> findByIdAndProfissionalId(Long id, Long profissionalId);
     List<Agendamento> findAllByClienteIdOrderByDataDescHoraInicioDesc(Long clienteId);
+    long countByEstabelecimentoIdAndCriadoEmGreaterThanEqual(Long estabelecimentoId, Instant inicio);
 
     @Query("""
             select coalesce(sum(a.valorCobrado), 0) from Agendamento a

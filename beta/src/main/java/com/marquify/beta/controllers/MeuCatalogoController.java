@@ -47,6 +47,16 @@ public class MeuCatalogoController {
         return ResponseEntity.ok(vendedorService.desativarServicoAtual(servicoId));
     }
 
+    @PatchMapping("/{servicoId}/arquivar")
+    public ResponseEntity<ServicoResponse> arquivar(@PathVariable Long servicoId) {
+        return ResponseEntity.ok(vendedorService.arquivarServicoAtual(servicoId));
+    }
+
+    @PatchMapping("/{servicoId}/restaurar")
+    public ResponseEntity<ServicoResponse> restaurar(@PathVariable Long servicoId) {
+        return ResponseEntity.ok(vendedorService.restaurarServicoAtual(servicoId));
+    }
+
     @PutMapping(path = "/{servicoId}/foto", consumes = "multipart/form-data")
     public ResponseEntity<ServicoResponse> foto(@PathVariable Long servicoId,
                                                  @RequestPart("foto") MultipartFile foto) {

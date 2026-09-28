@@ -100,7 +100,7 @@ public class DisponibilidadeService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Profissional não oferece o serviço selecionado");
         }
         List<LocalTime> candidatos = horariosPossiveis(profissional, servico, data).stream()
-                .filter(horario -> momentoFuturo(profissional, data, horario))
+                .filter(horario -> momentoPermitido(profissional, data, horario))
                 .toList();
         List<Agendamento> reservas = agendamentos.findAllByProfissionalIdAndDataAndStatus(
                 profissional.getId(), data, Status.AGENDADO);
@@ -111,7 +111,7 @@ public class DisponibilidadeService {
         }).toList();
         List<LocalTime> ocupados = candidatos.stream().filter(horario -> {
             LocalTime fim = horario.plusHours(servico.getTempo().getHour()).plusMinutes(servico.getTempo().getMinute());
-            return reservas.stream().anyMatch(reserva -> sobrepoe(horario, fim, reserva.getHoraInicio(), reserva.getHoraFim()));
+            return reservas.stream().anyMatch(reserva -> sobrepoeComIntervalo(profissional, horario, fim, reserva));
         }).filter(horario -> !bloqueados.contains(horario)).toList();
         List<LocalTime> livres = candidatos.stream()
                 .filter(horario -> !ocupados.contains(horario) && !bloqueados.contains(horario)).toList();
@@ -130,17 +130,17 @@ public class DisponibilidadeService {
         return java.util.stream.IntStream.range(0, 96).mapToObj(i -> LocalTime.ofSecondOfDay(i * 900))
                 .filter(inicio -> {
                     LocalTime fim = inicio.plusSeconds(duracao.toSecondOfDay());
-                    return fim.isAfter(inicio) && momentoFuturo(profissional, data, inicio)
+                    return fim.isAfter(inicio) && momentoPermitido(profissional, data, inicio)
                             && jornadas.stream().anyMatch(j -> !inicio.isBefore(j.getHoraInicio()) && !fim.isAfter(j.getHoraFim()))
                             && pausas.stream().noneMatch(p -> p.bloqueia(data, inicio, fim))
                             && reservas.stream().filter(r -> !r.getId().equals(ignorarId))
-                                .noneMatch(r -> sobrepoe(inicio, fim, r.getHoraInicio(), r.getHoraFim()));
+                                .noneMatch(r -> sobrepoeComIntervalo(profissional, inicio, fim, r));
                 }).toList();
     }
 
     public boolean horarioDisponivel(Profissional profissional, LocalTime duracao, LocalDate data, LocalTime horaInicio, Long ignorarId) {
         if (data == null || horaInicio == null || duracao == null || duracao.equals(LocalTime.MIDNIGHT)) return false;
-        if (!momentoFuturo(profissional, data, horaInicio)) return false;
+        if (!momentoPermitido(profissional, data, horaInicio)) return false;
         LocalTime horaFim = horaInicio.plusSeconds(duracao.toSecondOfDay());
         if (!horaFim.isAfter(horaInicio)) return false;
         boolean dentroDaJornada = disponibilidades.findAllByProfissionalIdAndDiaSemana(profissional.getId(), data.getDayOfWeek())
@@ -151,7 +151,7 @@ public class DisponibilidadeService {
         if (bloqueado) return false;
         return agendamentos.findAllByProfissionalIdAndDataAndStatus(profissional.getId(), data, Status.AGENDADO).stream()
                 .filter(agendamento -> !agendamento.getId().equals(ignorarId))
-                .noneMatch(agendamento -> sobrepoe(horaInicio, horaFim, agendamento.getHoraInicio(), agendamento.getHoraFim()));
+                .noneMatch(agendamento -> sobrepoeComIntervalo(profissional, horaInicio, horaFim, agendamento));
     }
 
     private List<LocalTime> horariosLivres(Profissional profissional, Servicos servico, LocalDate data) {
@@ -171,11 +171,12 @@ public class DisponibilidadeService {
                 .toList();
     }
 
-    private boolean momentoFuturo(Profissional profissional, LocalDate data, LocalTime horaInicio) {
+    private boolean momentoPermitido(Profissional profissional, LocalDate data, LocalTime horaInicio) {
         ZoneId fusoHorario = ZoneId.of(profissional.getEstabelecimento().getFusoHorario());
         ZonedDateTime agora = ZonedDateTime.now(fusoHorario);
-        return !data.isBefore(agora.toLocalDate())
-                && (!data.isEqual(agora.toLocalDate()) || horaInicio.isAfter(agora.toLocalTime()));
+        var estabelecimento = profissional.getEstabelecimento();
+        if (data.isAfter(agora.toLocalDate().plusDays(estabelecimento.getJanelaMaximaAgendamentoDias()))) return false;
+        return data.atTime(horaInicio).isAfter(agora.toLocalDateTime().plusMinutes(estabelecimento.getAntecedenciaMinimaMinutos()));
     }
 
     private DisponibilidadeResponse respostaDisponibilidade(Long profissionalId) {
@@ -199,6 +200,29 @@ public class DisponibilidadeService {
 
     private boolean sobrepoe(LocalTime inicio, LocalTime fim, LocalTime outroInicio, LocalTime outroFim) {
         return inicio.isBefore(outroFim) && outroInicio.isBefore(fim);
+    }
+
+    @Transactional(readOnly = true)
+    public DisponibilidadeResponse consultarDoProfissional() {
+        return respostaDisponibilidade(currentUser.profissional().getId());
+    }
+
+    public DisponibilidadeResponse substituirDoProfissional(DisponibilidadeRequest request) {
+        Profissional profissional = currentUser.profissional();
+        HashSet<java.time.DayOfWeek> dias = new HashSet<>();
+        for (DisponibilidadeRequest.Jornada jornada : request.jornadas()) {
+            if (!jornada.horaInicio().isBefore(jornada.horaFim()) || !dias.add(jornada.diaSemana())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Jornadas inválidas ou repetidas");
+        }
+        disponibilidades.deleteByProfissionalId(profissional.getId()); disponibilidades.flush();
+        disponibilidades.saveAll(request.jornadas().stream().map(j -> new DisponibilidadeProfissional(profissional,j.diaSemana(),j.horaInicio(),j.horaFim())).toList());
+        return respostaDisponibilidade(profissional.getId());
+    }
+
+    private boolean sobrepoeComIntervalo(Profissional profissional, LocalTime inicio, LocalTime fim, Agendamento reserva) {
+        int intervalo = profissional.getEstabelecimento().getIntervaloEntreServicosMinutos();
+        if (intervalo == 0) return sobrepoe(inicio, fim, reserva.getHoraInicio(), reserva.getHoraFim());
+        return inicio.isBefore(reserva.getHoraFim().plusMinutes(intervalo))
+                && reserva.getHoraInicio().minusMinutes(intervalo).isBefore(fim);
     }
 
     private ResponseStatusException notFound() {

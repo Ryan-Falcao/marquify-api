@@ -33,6 +33,7 @@ public class CadastroComercialService {
     private final EstabelecimentoRepository estabelecimentos;
     private final com.marquify.beta.repository.ProfissionalRepository profissionais;
     private final DisponibilidadeProfissionalRepository disponibilidades;
+    private final AssinaturaService assinaturas;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokens;
 
@@ -42,6 +43,7 @@ public class CadastroComercialService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já está em uso");
         }
         Estabelecimento estabelecimento = estabelecimentos.save(new Estabelecimento(request.estabelecimento(), request.fusoHorario()));
+        assinaturas.criarAssinaturaGratuita(estabelecimento);
         Vendedor vendedor = new Vendedor();
         vendedor.setNome(request.nome().trim());
         vendedor.setEmail(email);

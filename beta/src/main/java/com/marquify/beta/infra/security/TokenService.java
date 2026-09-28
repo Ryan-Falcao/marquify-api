@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import com.marquify.beta.entity.Cliente;
 import com.marquify.beta.entity.Vendedor;
+import com.marquify.beta.entity.ContaProfissional;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -45,6 +46,7 @@ public class TokenService {
     private String subject(UserDetails usuario) {
         if (usuario instanceof Cliente cliente && cliente.getId() != null) return "cliente:" + cliente.getId();
         if (usuario instanceof Vendedor vendedor && vendedor.getId() != null) return "vendedor:" + vendedor.getId();
+        if (usuario instanceof ContaProfissional profissional && profissional.getId() != null) return "profissional:" + profissional.getId();
         throw new IllegalArgumentException("Identidade não suportada");
     }
 

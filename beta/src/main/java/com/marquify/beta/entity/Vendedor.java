@@ -64,7 +64,7 @@ public class Vendedor implements UserDetails {
     @ElementCollection(targetClass = DiasAbertos.class, fetch = FetchType.EAGER)
     @CollectionTable(name = "vendedor_dias_abertos", joinColumns = @JoinColumn(name = "vendedor_id"))
     @Enumerated(EnumType.STRING)
-    @Column(name = "dia")
+    @Column(name = "dia", length = 20)
     private Set<DiasAbertos> diasAbertos;
 
     @NotNull
