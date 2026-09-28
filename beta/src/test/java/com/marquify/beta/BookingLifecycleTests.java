@@ -33,12 +33,14 @@ class BookingLifecycleTests {
     @Autowired DisponibilidadeProfissionalRepository jornadas;
     @Autowired servicoRepository servicos;
     @Autowired agendamentoRepository agendamentos;
+    @Autowired AssinaturaRepository assinaturas;
 
     record Fixture(long vendedor, long profissional, long servico, String token, String otherToken, String adminToken, LocalDate data) {}
     Fixture fixture() {
         return new TransactionTemplate(transactions).execute(tx -> {
             String key = UUID.randomUUID().toString();
             var e = estabelecimentos.save(new Estabelecimento("Loja " + key, "America/Sao_Paulo"));
+            assinaturas.save(Assinatura.gratuita(e));
             var v = new Vendedor(); v.setNome("Responsável"); v.setEmail(key + "@seller.test"); v.setSenha("unused");
             v.setNomeLoja(e.getNome()); v.setEstabelecimento(e); v.setRole(UserRole.ADMIN);
             v.setHoraAbertura(LocalTime.of(8,0)); v.setHoraFechamento(LocalTime.of(18,0)); v.setDiasAbertos(Set.of(DiasAbertos.Segunda));

@@ -48,6 +48,7 @@ class SecurityIntegrationTests {
     @Autowired servicoRepository servicos;
     @Autowired agendamentoRepository agendamentos;
     @Autowired DisponibilidadeProfissionalRepository disponibilidades;
+    @Autowired AssinaturaRepository assinaturas;
 
     Cliente clienteA;
     Cliente clienteB;
@@ -617,6 +618,9 @@ class SecurityIntegrationTests {
         assertThat(novo.getProfissionalPrincipal()).isNotNull();
         assertThat(disponibilidades.findAllByProfissionalIdOrderByDiaSemanaAsc(novo.getProfissionalPrincipal().getId()))
                 .hasSize(6);
+        Assinatura assinatura = assinaturas.findByEstabelecimentoId(novo.getEstabelecimento().getId()).orElseThrow();
+        assertThat(assinatura.getPlano()).isEqualTo(PlanoAssinatura.GRATUITO);
+        assertThat(assinatura.getStatus()).isEqualTo(StatusAssinatura.ATIVA);
     }
 
     @Test
@@ -639,7 +643,10 @@ class SecurityIntegrationTests {
         Vendedor v = new Vendedor();
         v.setNome("Proprietário");
         v.setEmail(email);
-        v.vincularEstabelecimento(estabelecimentos.save(new Estabelecimento(email + " - estabelecimento", "America/Sao_Paulo")));
+        Estabelecimento estabelecimento = estabelecimentos.save(new Estabelecimento(email + " - estabelecimento", "America/Sao_Paulo"));
+        assinaturas.save(Assinatura.testeGratis(estabelecimento,
+                java.time.Instant.now().plus(1, java.time.temporal.ChronoUnit.DAYS)));
+        v.vincularEstabelecimento(estabelecimento);
         v.setNomeLoja(email);
         v.setHoraAbertura(LocalTime.of(8, 0));
         v.setHoraFechamento(LocalTime.of(18, 0));
