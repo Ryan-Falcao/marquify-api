@@ -197,3 +197,8 @@
   .personalization-v2 .public-preview-hero.size-compacta{height:184px;min-height:184px}.personalization-v2 .public-preview-hero.size-compacta .preview-hero-eyebrow{margin-top:20px}
   @media(max-width:680px){.personalization-v2 .public-page-preview{height:min(610px,calc((100vw - 32px) * 1.48))}.personalization-v2 .public-preview-hero{height:224px;min-height:224px}.personalization-v2 .public-preview-service{min-height:58px}.personalization-v2 .public-preview-photo{height:58px}}
 }
+
+@media (max-width:680px) {
+  .dashboard-shell .agenda-workspace .agenda-week-grid { display:none !important; }
+  .dashboard-shell .agenda-workspace .agenda-mobile { display:grid !important; }
+}
